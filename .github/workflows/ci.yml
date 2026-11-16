@@ -1,0 +1,179 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: nothing by default; each job grants only what it needs.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (ruff, mypy --strict)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install hash-pinned tooling
+        run: |
+          python -m pip install --require-hashes -r requirements/dev.txt
+          python -m pip install --require-hashes -r requirements/build.txt
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: ruff check
+        run: python -m ruff check src tests scripts examples
+      - name: ruff format --check
+        run: python -m ruff format --check src tests scripts examples
+      - name: mypy --strict
+        run: python -m mypy --strict src tests scripts
+
+  test:
+    name: test (py${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        # Every version on Linux; macOS and Windows run 3.11+ only (macos-latest is arm64,
+        # where the newest 3.9/3.10 builds are years old).
+        exclude:
+          - os: macos-latest
+            python-version: "3.9"
+          - os: macos-latest
+            python-version: "3.10"
+          - os: windows-latest
+            python-version: "3.9"
+          - os: windows-latest
+            python-version: "3.10"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pytest>=8"
+          python -m pip install -e .
+      - name: pytest
+        run: python -m pytest -q
+
+  coverage:
+    name: coverage (>= 95% overall and per security module)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install hash-pinned tooling
+        run: |
+          python -m pip install --require-hashes -r requirements/dev.txt
+          python -m pip install --require-hashes -r requirements/build.txt
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: pytest with coverage
+        run: python -m pytest --cov=rightsfoundry --cov-report=term-missing --cov-fail-under=95
+      - name: Per-module coverage gate (_transport, _config, _redact, _retry, _guard)
+        run: |
+          python -m coverage json -o coverage.json
+          python scripts/check_module_coverage.py coverage.json
+
+  openapi-contract:
+    name: OpenAPI contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Check the endpoint registry against the vendored contract
+        run: python scripts/check_openapi_sync.py conformance/openapi_contract.json
+
+  build:
+    name: build, zero-dependency assertion, SBOM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel (hash-pinned build tooling)
+        shell: bash
+        run: |
+          python -m pip install --require-hashes -r requirements/build.txt
+          python -m build --no-isolation
+      - name: Assert zero runtime dependencies (SEC-01)
+        shell: bash
+        run: python scripts/assert_zero_deps.py dist/*.whl dist/*.tar.gz
+      - name: Generate SBOM
+        shell: bash
+        run: python scripts/generate_sbom.py
+      - name: Zero-dependency smoke test in a fresh venv
+        shell: bash
+        run: |
+          python -m venv "${RUNNER_TEMP}/smoke"
+          "${RUNNER_TEMP}/smoke/bin/python" -m pip install --no-deps dist/*.whl
+          cd "${RUNNER_TEMP}"
+          "${RUNNER_TEMP}/smoke/bin/python" -c "import rightsfoundry, sys; print(rightsfoundry.__version__); sys.exit(0)"
+          "${RUNNER_TEMP}/smoke/bin/rightsfoundry" --version
+          "${RUNNER_TEMP}/smoke/bin/python" -m pip check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dist-ci
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  codeql:
+    name: CodeQL (security-extended)
+    # Fork pull requests do not get security-events: write, so they skip this job instead of failing it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          languages: python
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9418214df1f2c4b8128c770156c409013b07d6b9 # v3
+        with:
+          category: "/language:python"

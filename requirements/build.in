@@ -1,0 +1,4 @@
+# Build tooling for release and CI builds. Compile with:
+#   uv pip compile --generate-hashes --universal --python-version 3.12 requirements/build.in -o requirements/build.txt
+build
+hatchling>=1.26

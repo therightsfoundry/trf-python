@@ -1,0 +1,8 @@
+# Lint, type-check and test tooling for CI (editables: for `pip install --no-build-isolation -e .`). Compile with:
+#   uv pip compile --generate-hashes --universal --python-version 3.12 requirements/dev.in -o requirements/dev.txt
+ruff>=0.6
+mypy>=1.11
+pytest>=8
+pytest-cov>=5
+coverage>=7
+editables

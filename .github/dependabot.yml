@@ -1,0 +1,22 @@
+# Dependabot: GitHub Actions SHAs (grouped) and development tooling.
+# The package has zero runtime dependencies; the zero-dependency assertion runs on every Dependabot PR
+# so a dev dependency can never slip into the runtime set.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(dev)"

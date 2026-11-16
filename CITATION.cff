@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: "rightsfoundry: The Rights Foundry Python SDK"
+abstract: >-
+  Official, zero-dependency Python SDK for The Rights Foundry API: royalty-free music
+  for commercial and creative sync, with programmable licensing across 85,000+ tracks of
+  cleared, human-made music. Search the catalog by filters,
+  natural-language Deep Search or acoustic similarity, stream signed MP3 previews, and
+  license WAV masters in one API call using prepaid credits.
+version: 1.0.0
+date-released: "2026-11-16"
+authors:
+  - name: "The Rights Foundry"
+    website: "https://therightsfoundry.com"
+    email: "info@therightsfoundry.com"
+license: MIT
+repository-code: "https://github.com/therightsfoundry/trf-python"
+repository-artifact: "https://pypi.org/project/rightsfoundry/"
+url: "https://therightsfoundry.com/"
+keywords:
+  - royalty-free music
+  - music licensing
+  - sync licensing
+  - music API
+  - cleared music
+  - WAV masters
+  - audio search
+  - acoustic similarity search
+  - AI video soundtrack
+  - MCP
+  - Python SDK

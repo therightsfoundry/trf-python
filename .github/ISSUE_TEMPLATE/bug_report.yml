@@ -1,0 +1,94 @@
+name: Bug report
+description: Something in the rightsfoundry SDK, CLI or GitHub Action does not work as documented.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+
+        > [!WARNING]
+        > **Never paste your API key or a signed URL** (anything containing `?expires=…&sig=…`) into this issue.
+        > Both are secrets: the key can spend your account's credits and a signed URL is a bearer link to licensed audio.
+        > Redact them. The SDK's own logs and errors already show `[REDACTED fp=…]` and `sig=[REDACTED]`, which are safe to paste.
+        >
+        > **Security vulnerabilities** must be reported privately: see the [security policy](https://github.com/therightsfoundry/trf-python/security/policy).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: The smallest code (or CLI / workflow snippet) that shows the problem. Read the key from `TRF_API_KEY`; do not inline it.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output and traceback
+      description: Paste the full error. It includes `request_id=…`, which lets us find the request; please keep it. Remove any key or signed URL.
+      render: text
+  - type: input
+    id: request-id
+    attributes:
+      label: request_id
+      description: The `request_id` from the error message or `X-Request-Id` header, if any.
+      placeholder: "e.g. 3f2b1c9e-…"
+  - type: input
+    id: charge-state
+    attributes:
+      label: charge_state
+      description: The error's `charge_state` (`not_charged` | `refund_pending` | `charged` | `unknown`), if relevant.
+  - type: input
+    id: sdk-version
+    attributes:
+      label: rightsfoundry version
+      description: '`python -c "import rightsfoundry; print(rightsfoundry.__version__)"`'
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version and OS
+      placeholder: "CPython 3.12.4 on Ubuntu 24.04"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      multiple: true
+      options:
+        - Client (sync)
+        - AsyncClient
+        - CLI (rightsfoundry command)
+        - GitHub Action
+        - Custom transport
+        - Documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: API environment
+      options:
+        - production
+        - staging
+        - not applicable
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have removed every API key and signed URL from this report.
+          required: true
+        - label: I searched existing issues and this is not a duplicate.
+          required: true

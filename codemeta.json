@@ -1,0 +1,71 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "rightsfoundry",
+  "alternateName": "The Rights Foundry Python SDK",
+  "description": "Official, zero-dependency Python SDK for The Rights Foundry API: royalty-free music for commercial and creative sync, with programmable licensing across 85,000+ tracks of cleared, human-made music. Search the catalog, stream signed MP3 previews and license WAV masters in one API call using prepaid credits.",
+  "version": "1.0.0",
+  "softwareVersion": "1.0.0",
+  "dateCreated": "2026-11-16",
+  "datePublished": "2026-11-16",
+  "license": "https://spdx.org/licenses/MIT",
+  "codeRepository": "https://github.com/therightsfoundry/trf-python",
+  "issueTracker": "https://github.com/therightsfoundry/trf-python/issues",
+  "url": "https://therightsfoundry.com/",
+  "downloadUrl": "https://pypi.org/project/rightsfoundry/",
+  "softwareHelp": {
+    "@type": "WebSite",
+    "name": "The Rights Foundry API documentation",
+    "url": "https://docs.therightsfoundry.com/"
+  },
+  "readme": "https://github.com/therightsfoundry/trf-python/blob/main/README.md",
+  "programmingLanguage": {
+    "@type": "ComputerLanguage",
+    "name": "Python",
+    "version": "3.9-3.14",
+    "url": "https://www.python.org"
+  },
+  "runtimePlatform": [
+    "CPython 3.9",
+    "CPython 3.10",
+    "CPython 3.11",
+    "CPython 3.12",
+    "CPython 3.13",
+    "CPython 3.14"
+  ],
+  "operatingSystem": ["Linux", "macOS", "Windows"],
+  "applicationCategory": "Software development library",
+  "developmentStatus": "active",
+  "softwareRequirements": [],
+  "keywords": [
+    "royalty-free music",
+    "music licensing",
+    "sync licensing",
+    "music API",
+    "cleared music",
+    "WAV masters",
+    "audio search",
+    "acoustic similarity search",
+    "AI video soundtrack",
+    "MCP",
+    "Python SDK"
+  ],
+  "author": [
+    {
+      "@type": "Organization",
+      "name": "The Rights Foundry",
+      "url": "https://therightsfoundry.com",
+      "email": "info@therightsfoundry.com"
+    }
+  ],
+  "maintainer": {
+    "@type": "Organization",
+    "name": "The Rights Foundry",
+    "url": "https://therightsfoundry.com",
+    "email": "info@therightsfoundry.com"
+  },
+  "copyrightHolder": {
+    "@type": "Organization",
+    "name": "The Rights Foundry"
+  }
+}

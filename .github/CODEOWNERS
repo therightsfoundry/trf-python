@@ -1,0 +1,11 @@
+# Default owners for everything in the repository.
+* @therightsfoundry/sdk-maintainers
+
+# Security-sensitive paths additionally require a security reviewer.
+/.github/ @therightsfoundry/security
+/src/rightsfoundry/_transport.py @therightsfoundry/security
+/src/rightsfoundry/_redact.py @therightsfoundry/security
+/src/rightsfoundry/_config.py @therightsfoundry/security
+/src/rightsfoundry/_secret.py @therightsfoundry/security
+/src/rightsfoundry/_download.py @therightsfoundry/security
+/action.yml @therightsfoundry/security

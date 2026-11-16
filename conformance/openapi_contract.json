@@ -1,0 +1,169 @@
+{
+  "contract_version": 1,
+  "source": "openapi 1.0",
+  "operations": {
+    "GET /v1/credits": {
+      "query": [],
+      "body": []
+    },
+    "GET /v1/taxonomies": {
+      "query": [],
+      "body": []
+    },
+    "GET /v1/tracks": {
+      "query": [
+        "album",
+        "artist",
+        "bpmMax",
+        "bpmMin",
+        "decade",
+        "durationMax",
+        "durationMin",
+        "explicit",
+        "featured",
+        "genre",
+        "id",
+        "includeChildren",
+        "instrument",
+        "key",
+        "limit",
+        "mood",
+        "page",
+        "search",
+        "sortBy",
+        "sortOrder",
+        "theme",
+        "vocals"
+      ],
+      "body": []
+    },
+    "GET /v1/tracks/{id}": {
+      "query": [],
+      "body": []
+    },
+    "POST /v1/tracks/deep-search": {
+      "query": [],
+      "body": [
+        "instrumental",
+        "limit",
+        "page",
+        "query"
+      ]
+    },
+    "POST /v1/tracks/search": {
+      "query": [],
+      "body": [
+        "file_url",
+        "instrumental",
+        "limit",
+        "page"
+      ]
+    },
+    "POST /v1/tracks/{id}/sync": {
+      "query": [],
+      "body": [
+        "external_export"
+      ]
+    }
+  },
+  "cost_keys": [
+    "deep_search_first_page",
+    "deep_search_next_page",
+    "export_sync",
+    "file_search_first_page",
+    "file_search_next_page",
+    "stream",
+    "sync",
+    "track_detail",
+    "tracks_list",
+    "tracks_search_first_page",
+    "tracks_search_next_page"
+  ],
+  "schemas": {
+    "Track": [
+      "ai_music_score",
+      "album",
+      "arousal",
+      "artist",
+      "asset_url",
+      "auto_description",
+      "bpm",
+      "bpm_confidence",
+      "bpm_detected",
+      "character",
+      "decades",
+      "duration",
+      "emotion_profile",
+      "energy_level",
+      "explicit",
+      "first_published",
+      "free_genre",
+      "genres",
+      "has_alternatives",
+      "id",
+      "instruments",
+      "instruments_detected",
+      "is_ai_music",
+      "key",
+      "key_confidence",
+      "main_genre",
+      "mood_advanced",
+      "mood_simple",
+      "moods",
+      "movement",
+      "music_for",
+      "musical_era",
+      "musical_key",
+      "peak_data_url",
+      "performed_by",
+      "production_year",
+      "release_date",
+      "sub_genres",
+      "sub_instruments",
+      "sub_themes",
+      "subgenre",
+      "tag_source",
+      "tagged_at",
+      "tempo",
+      "term_matches",
+      "themes",
+      "time_signature",
+      "title",
+      "valence",
+      "vocal_gender",
+      "vocal_presence",
+      "vocal_style",
+      "vocals",
+      "vocals_detected",
+      "voiceover_degree",
+      "voiceover_dominant"
+    ],
+    "SyncLink": [
+      "artist",
+      "billing",
+      "credits_charged",
+      "download_url",
+      "expires_at",
+      "expires_in",
+      "external_export",
+      "file_name",
+      "format",
+      "id",
+      "reissued",
+      "title"
+    ],
+    "CreditBalance": [
+      "api_credits",
+      "as_of",
+      "balance_source",
+      "bandwidth_bytes",
+      "costs",
+      "discounts",
+      "expiring_credits",
+      "standard_costs",
+      "subscription",
+      "success",
+      "token"
+    ]
+  }
+}

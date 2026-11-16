@@ -1,0 +1,673 @@
+# The Rights Foundry Python SDK (rightsfoundry) — complete reference
+
+> Single-file reference for developers and AI agents. Package: PyPI `rightsfoundry` 1.0.0, import `rightsfoundry`.
+> Python 3.9–3.14, zero runtime dependencies, fully typed (`py.typed`, `mypy --strict`). License: MIT.
+> Repository: https://github.com/therightsfoundry/trf-python · API docs: https://docs.therightsfoundry.com/ ·
+> OpenAPI: https://docs.therightsfoundry.com/openapi.yaml · Platform: https://therightsfoundry.com/ ·
+> For builders: https://therightsfoundry.com/for-builders · API keys: https://therightsfoundry.com/dashboard/token ·
+> Licensing terms: https://therightsfoundry.com/licensing · MCP connector: https://mcp.therightsfoundry.com/mcp
+
+The Rights Foundry (https://therightsfoundry.com/) is music rights infrastructure operated by AudioSocket. It offers
+royalty-free music for commercial and creative sync: programmable licensing across 85,000+ tracks of
+cleared, human-made music (61,784 original recordings plus instrumental and alternate versions). Developers and AI
+systems search the catalog, stream signed MP3 previews and license broadcast-quality WAV masters in one API call.
+Calls are paid from a prepaid fiat credit balance, topped up directly or through an optional monthly plan. New
+accounts can claim free beta credits (https://therightsfoundry.com/register): promotional welcome credits, granted
+when a payment method is saved on the account (not at registration). If they are used up inside the promotion
+window, the account moves to the Starter Beta monthly plan unless the user cancels that transition. Current plan and
+auto-conversion terms are on https://therightsfoundry.com/.
+
+======================================================================================================================
+0. RULES (read these first)
+======================================================================================================================
+
+1. Never expose TRF_API_KEY to browsers, mobile apps, client bundles, logs, issues or prompts. It is an account-wide
+   secret that can spend the whole balance. Call the API from a server and hand browsers only track metadata and
+   signed preview URLs (asset_url).
+2. Never send an Authorization header (or any credential, custom header or cookie) to https://assets.therightsfoundry.com.
+   The signature in the URL is the authorisation. client.sync_links.download() already does this correctly.
+3. Store track IDs, not signed URLs. Every signed URL (asset_url, peak_data_url, download_url) expires 1 hour after
+   it was signed. To get a fresh preview, re-fetch the track (charged). To get a fresh WAV link, call
+   tracks.sync(id) again, which is free while the original window is still valid.
+4. Never hard-code prices. Read the live rate card from client.credits.retrieve().costs (free, unmetered). The
+   operator can change any rate without a new API version.
+5. Every charged method accepts max_credits= (a client-side cap on the projected cost; nothing is sent if it would be
+   exceeded) and timeout= (seconds, 0 < t <= 600). Every typed method also accepts max_retries=, idempotency_key= and
+   send_max_credits_header= (section 2, "Per-call options").
+6. tracks.sync() is the licence transaction. Agents should get human approval before calling it, and cap it with
+   max_credits.
+7. Sync licences do NOT grant AI/ML training rights.
+8. Print signed URLs only through link.redacted_download_url() / track.redacted_asset_url().
+9. In a constructor, api_key=None does NOT fall back to the environment. Only an omitted api_key reads TRF_API_KEY.
+
+======================================================================================================================
+1. INSTALL AND CONSTRUCT
+======================================================================================================================
+
+    pip install rightsfoundry        # or: uv add rightsfoundry
+
+    import rightsfoundry
+    client = rightsfoundry.Client()                       # reads TRF_API_KEY once, at construction
+    client = rightsfoundry.Client(api_key=key_from_vault)  # explicit (str or rightsfoundry.Secret)
+    client = rightsfoundry.Client(environment="staging")  # https://api-staging.therightsfoundry.com
+    public = rightsfoundry.Client.unauthenticated()       # no key: only .health and .sync_links work
+
+    with rightsfoundry.Client() as client: ...            # closes pooled sockets
+    async with rightsfoundry.AsyncClient() as client: ... # asyncio; await every method
+
+Client: synchronous, thread-safe; one instance can be shared. AsyncClient: asyncio, task-safe; use one per event loop.
+By default AsyncClient runs the same hardened http.client transport in a bounded thread pool (max_connections
+workers).
+
+Client / AsyncClient attributes and methods:
+- .tracks         TracksResource / AsyncTracksResource (requires a key)
+- .taxonomies     TaxonomiesResource (requires a key)
+- .credits        CreditsResource (requires a key)
+- .health         HealthResource (no key ever sent)
+- .sync_links     SyncLinksResource (no key ever sent)
+- .config         ClientConfig (immutable, repr redacted)
+- .environment    "production" | "staging"
+- .base_url       validated API base URL
+- .api_key_fingerprint   8 hex chars, the same fingerprint shown on https://therightsfoundry.com/dashboard/token (None if unauthenticated)
+- .with_options(**overrides) -> new client sharing the connection pool; re-validates the merged config
+- .request(method, path, *, query=None, json=None, options=None, timeout=None, max_credits=None, idempotency_key=None)
+    -> parsed JSON, or None for a 204 / empty 2xx body
+- .close() / AsyncClient: await .aclose(); both are context managers
+- Clients, configs and Secret refuse pickling and copying (TypeError). Use with_options() instead.
+
+Accessing .tracks / .taxonomies / .credits on an unauthenticated() client raises ConfigurationError.
+
+======================================================================================================================
+2. METHODS (sync signatures; AsyncClient methods are identical but `async def`, iterators use `async for`)
+======================================================================================================================
+
+----------------------------------------------------------------------------------------------------------------------
+Per-call options (accepted by every typed method below)
+----------------------------------------------------------------------------------------------------------------------
+  tracks.list / iter / get / deep_search / search_similar / sync, taxonomies.list, credits.retrieve and
+  health.check / live / ready accept these keywords (omit one to use the client's setting):
+    timeout: float                   seconds for this call, 0 < t <= 600
+    max_retries: int                 0–10; replaces the client's max_retries for this call (money-safety rules still apply)
+    idempotency_key: str             1–255 printable ASCII characters without spaces, sent as Idempotency-Key. With a
+                                     key, ambiguous outcomes (408, 502, 504, read-phase connection failures) are
+                                     retried even under charged_retry_policy="refund_backed" (section 7)
+    send_max_credits_header: bool    with a cap in force, also send X-TRF-Max-Credits: <int cap> (forward-compatible
+                                     server-side cap; the API ignores it today)
+    max_credits: int                 charged methods only (see rule 5)
+  rightsfoundry.CallOptions is a frozen dataclass bundling the same fields:
+    CallOptions(timeout=..., max_credits=..., max_retries=..., idempotency_key=..., send_max_credits_header=...)
+    (every field is optional)
+  client.request(..., options=CallOptions(...)) accepts it.
+  String inputs (search, query, filters) are measured in UTF-16 code units, as the server measures them, after
+  surrounding whitespace and a leading byte-order mark (U+FEFF) are stripped.
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.list(...) -> TrackPage                                    GET /v1/tracks          CHARGED
+----------------------------------------------------------------------------------------------------------------------
+    list(*, page: int | None = None, limit: int | None = None,
+         search: str | None = None, genre: str | None = None, mood: str | None = None,
+         instrument: str | None = None, theme: str | None = None, artist: str | None = None,
+         album: str | None = None, vocals: str | None = None, key: str | None = None,
+         bpm_min: float | None = None, bpm_max: float | None = None,
+         duration_min: float | None = None, duration_max: float | None = None,
+         featured: bool | None = None, explicit: bool | None = None, decade: str | None = None,
+         id: int | None = None, include_children: bool | None = None,
+         sort_by: str | None = None, sort_order: str | None = None,
+         max_credits: int | None = None, timeout: float | None = None, max_retries: int | None = None,
+         idempotency_key: str | None = None, send_max_credits_header: bool | None = None) -> TrackPage
+
+  Cost key: tracks_list. With a non-empty `search`: page 1 is tracks_search_first_page and page >= 2 is
+  tracks_search_next_page. A whitespace-only search is priced as a listing.
+  Parameter rules (validated client-side; nothing is sent on failure → ValidationError):
+    page              int >= 1 (default 1 server-side)
+    limit             int 1–100 (default 20 server-side). >100 is REJECTED client-side, because the server would silently cap it.
+    search            str, <= 200 chars after trim, no control chars
+    genre/mood/instrument/theme   str <= 100, exact tag match (server lowercases)
+    artist/album      str <= 200
+    vocals            "instrumental" | "male" | "female" | "any"
+    key               str <= 12, musical key such as "A minor" (catalogue data, not a secret)
+    bpm_min/bpm_max   number >= 0; bpm_max <= 999; min <= max. Wire names: bpmMin/bpmMax
+    duration_min/max  seconds >= 0; duration_max <= 99999; min <= max. Wire: durationMin/durationMax. The server widens windows < 4 s.
+    featured/explicit/include_children   bool (wire: includeChildren)
+    decade            str <= 10
+    id                int 1..999_999_999_999_999 (filter by one track id)
+    sort_by           "relevance" | "first_published" | "created_at" | "title" | "artist" | "bpm" | "duration"
+                      (default: relevance with search, else first_published desc). Wire: sortBy
+    sort_order        "asc" | "desc" (default desc). Wire: sortOrder
+  NaN/Infinity are rejected. Unknown keyword arguments raise TypeError. Parameters are sent in a fixed order.
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.iter(...) -> SyncPageIterator  (AsyncClient: AsyncPageIterator)        repeated GET /v1/tracks  CHARGED per page
+----------------------------------------------------------------------------------------------------------------------
+    iter(*, limit: int = 100, start_page: int = 1, max_pages: int = 50, max_items: int | None = None,
+         max_credits: int | None = None, <every tracks.list filter>, <per-call options>)
+
+  for track in client.tracks.iter(genre="jazz", max_items=1000, max_credits=40): ...
+  for page in client.tracks.iter(genre="jazz").pages(): ...
+  async for track in async_client.tracks.iter(mood="calm"): ...      # no await before iter()
+  Stops when: page * limit >= total, an empty page, max_pages pages fetched, max_items yielded, or the next page would
+  exceed max_credits (CreditBudgetExceededError is raised BEFORE that page is sent). Short pages do not stop it.
+  max_credits projects each page's cost from your live rate card (it fetches GET /v1/credits, free, when stale).
+  The iterator's .spent_projected attribute holds the credits projected so far.
+  Iterators are SINGLE-USE. Iterating a consumed iterator (or its .pages()) again raises
+  rightsfoundry.IteratorConsumedError (a RightsFoundryError and a RuntimeError) instead of re-sending and re-charging
+  every page. Call client.tracks.iter(...) again to walk the results again.
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.get(track_id, *, max_credits=None, <per-call options>) -> Track    GET /v1/tracks/{id}   CHARGED
+----------------------------------------------------------------------------------------------------------------------
+  track_id: int 1..999_999_999_999_999 or a str of 1–15 ASCII digits (bool, signs, spaces and Unicode digits are
+  rejected → InvalidTrackIdError). Cost key: track_detail, charged only when the track exists (404 is free).
+  Returns the track plus child_tracks (alternate versions: instrumental, acoustic, …) for parent tracks.
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.deep_search(query, *, page=1, limit=20, instrumental=False, max_credits=None, <per-call options>) -> TrackPage
+                                                                        POST /v1/tracks/deep-search   CHARGED
+----------------------------------------------------------------------------------------------------------------------
+  Natural-language brief, results in relevance order. query: str, 1–500 chars after trim, no control chars.
+  limit 1–100. instrumental: bool.
+  Cost keys: page 1 = deep_search_first_page, charged EVERY time page 1 is sent, even if the result is cached.
+  Page >= 2 = deep_search_next_page, at the next-page rate from GET /v1/credits. Ask for a large page once rather than
+  re-sending page 1.
+  total = candidate-set size (<= 1,000). Each page is a slice of a list cached for 1 hour, and a page can be short.
+  Requires the token's Deep Search ability (else FeatureNotEnabledError, feature="deep_search").
+  The upstream deadline is 20 s; a 503 SearchUnavailableError is refunded best-effort.
+
+client.tracks.deep_search_iter(query, *, limit=100, instrumental=False, max_pages=50, max_items=None,
+                               max_credits=None, timeout=None) -> SyncPageIterator / AsyncPageIterator
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.search_similar(file_url, *, page=1, limit=20, instrumental=False, max_credits=None, <per-call options>) -> TrackPage
+                                                                        POST /v1/tracks/search        CHARGED
+----------------------------------------------------------------------------------------------------------------------
+  Acoustic Similarity Search: tracks that sound like a reference recording. The provider fingerprints the audio.
+  file_url rules (validated BEFORE sending, because an unreachable file is charged and not refunded):
+    <= 2000 chars; absolute http(s) URL; path ends in .mp3 or .wav (case-insensitive) before ?/#; no userinfo;
+    ASCII host (punycode for IDNs); no IP literals in loopback/private/link-local/CGNAT/unique-local ranges, no
+    numeric IP encodings; not localhost; no single-label hosts; port in {80, 443, 8080, 8443}. File must be publicly
+    reachable and under 120 MB. http:// is allowed but logs one warning per client.
+  Cost keys: page 1 = file_search_first_page (every time), page >= 2 = file_search_next_page, at the next-page rate
+  from GET /v1/credits.
+  Requires the Deep Search ability. Upstream deadline 45 s.
+  If the provider cannot fetch/decode the file → UnreachableFileError (400), charge_state="charged" (NOT refunded).
+
+client.tracks.search_similar_iter(file_url, *, limit=100, instrumental=False, max_pages=50, max_items=None,
+                                  max_credits=None, timeout=None) -> SyncPageIterator / AsyncPageIterator
+
+----------------------------------------------------------------------------------------------------------------------
+client.tracks.sync(track_id, *, external_export=False, max_credits=None, <per-call options>) -> SyncLink
+                                                                        POST /v1/tracks/{id}/sync     CHARGED (new window)
+----------------------------------------------------------------------------------------------------------------------
+  Mints a signed 1-hour link to the track's WAV master. This is the licence transaction.
+  Cost key: sync (standard), or export_sync when external_export=True (Export Sync).
+  A repeat request for the same account + track + mode while the window is live is FREE: credits_charged == 0,
+  reissued is True, and expires_at is the ORIGINAL expiry (re-requesting never extends access). Standard and Export
+  Sync each have their own window. Minting after expiry is charged again.
+  Single-flight: concurrent sync() calls for the same (track_id, external_export) on one client share one HTTP
+  request. Retry class "sync": ambiguous failures are retried safely (the server serialises windows under a lock).
+  Body sent: {"external_export": <bool>}. Requires the Sync ability (else FeatureNotEnabledError, feature="sync").
+  Free 404s: TrackNotFoundError, SyncMasterUnavailableError ("No sync master is available for this track").
+  The guard projects sync at full price, because the client cannot know whether a window is live.
+
+----------------------------------------------------------------------------------------------------------------------
+client.sync_links.download(link, dest, *, overwrite=False, resume=False, kind="sync", timeout=None) -> pathlib.Path
+                                                                        GET <signed URL> on the asset host   FREE
+----------------------------------------------------------------------------------------------------------------------
+  link: SyncLink (kind="sync"), Track (kind="preview": downloads the MP3 asset_url), or a signed URL str.
+  dest: an existing directory, a path ending in "/" (created with mode 0o700), or a file path whose parent exists.
+  When dest is a directory, the file name is the sanitised link.file_name (falls back to "<id>.wav" / "<id>.mp3").
+  URL must be https://<asset host>/stream/...?expires=<unix>&sig=<hex> on port 443 with exactly those two query keys,
+  no userinfo or fragment, and must not expire within 5 s (else SyncLinkExpiredError; minting a new link after
+  expiry is charged again). Asset hosts come from the asset_hosts option (default ["assets.therightsfoundry.com"]).
+  Sends NO Authorization, custom headers or cookies. Redirects are never followed. Streams in 64 KiB chunks to an
+  exclusively created 0600 temp file, bounded by max_download_bytes (2 GiB), then fsyncs and renames atomically.
+  Refuses symlinks. An existing file is kept unless overwrite=True. resume=True continues a partial download with an
+  HTTP Range request (validated against Content-Range). The hidden partial file is keyed by a hash of the URL path, so
+  a different track never appends onto another's partial; if a ranged resume fails, the SDK truncates the partial and
+  retries once with a full GET.
+  Asset-host errors: 403 "URL has expired" → SyncLinkExpiredError; 400/403 → SyncLinkInvalidError;
+  404 → SyncMasterUnavailableError (not retried); 408/429/5xx retried up to max_retries.
+  kind="preview": preview streams are intended to be billed at costs.stream from API credits in a future update
+  (metered today, not yet deducted).
+
+----------------------------------------------------------------------------------------------------------------------
+client.taxonomies.list(*, <per-call options>) -> Taxonomies             GET /v1/taxonomies      FREE
+client.credits.retrieve(*, <per-call options>) -> Credits                GET /v1/credits         FREE, unmetered
+client.health.check(*, <per-call options>) -> HealthStatus               GET /v1/health          FREE, no key sent
+client.health.live(*, <per-call options>) -> LivenessStatus              GET /v1/health/live     FREE, no key sent
+client.health.ready(*, <per-call options>) -> ReadinessStatus            GET /v1/health/ready    FREE, no key sent
+----------------------------------------------------------------------------------------------------------------------
+  taxonomies: values in every facet, ordered by count desc. Each value is an exact-match term for tracks.list.
+  Cached in-process only when taxonomies_cache_ttl_ms > 0.
+  credits.retrieve(): also refreshes the client's credit guard (rate card and balance snapshot).
+  health: a 503 "degraded"/"not ready" answer is RETURNED as a value (check .healthy / .alive / .ready). Only an
+  inability to reach the API raises HealthCheckError. Health probes default to max_retries=0, so a degraded 503 returns
+  HealthStatus(status="degraded") immediately; pass max_retries=2 to retry it.
+
+----------------------------------------------------------------------------------------------------------------------
+client.request(method, path, *, query=None, json=None, options=None, timeout=None, max_credits=None,
+               idempotency_key=None) -> Any
+----------------------------------------------------------------------------------------------------------------------
+  Low-level escape hatch for endpoints added to the API before an SDK release. It goes through the full pipeline
+  (auth, guards, retries, redaction, bounded reads) and returns parsed JSON: objects, arrays and primitives are
+  returned as they are, and a 204 or an empty 2xx body returns None. options= takes a CallOptions.
+  method: GET/POST/PUT/PATCH/DELETE/HEAD. path must start with /v1/, use only [A-Za-z0-9/_-], and contain no "..",
+  "//", %2e, %2f or backslash. Admin paths (/v1/admin…, /v1/health/admin) are refused.
+  query: a mapping of name ([A-Za-z0-9_]{1,64}) to str/int/float/bool. json: a mapping (strict JSON).
+  Known endpoints keep their cost key and retry class. Unknown endpoints use cost key "unknown" and the
+  conservative "charged" retry class, so a guard in closed mode refuses them when a cap is set.
+  idempotency_key: 1–255 printable ASCII characters without spaces, sent as an Idempotency-Key header. With a key,
+  ambiguous outcomes are retried (section 7). This is forward-compatible: the API does not honour idempotency keys yet.
+
+======================================================================================================================
+3. MODELS (frozen dataclasses; every model has .raw — a deep read-only view of the original JSON — and .to_dict())
+======================================================================================================================
+
+Unknown fields never raise and are kept in .raw. Enums are open (typed as str), so an unknown value never raises.
+Signed URLs are intact on the model, but every repr redacts their sig. Models pickle and copy.deepcopy cleanly (for
+multiprocessing, Celery, caches). .raw is an immutable read-only mapping: str()/repr() redact signed-URL sig values,
+while indexing still returns the real value.
+
+Track
+  id: int · title, artist, performed_by, album: str|None · duration: float|None (seconds) · bpm: float|None ·
+  musical_key, decades, vocals: str|None · explicit: bool|None · first_published, release_date: str|None ·
+  asset_url: str|None (signed MP3 preview, 1 h) · peak_data_url: str|None (signed waveform data, 1 h) ·
+  genres, sub_genres, moods, instruments, sub_instruments, themes, sub_themes: tuple[str, ...] (editorial tags) ·
+  AI musical analysis (all may be None): main_genre, subgenre, free_genre, mood_simple, mood_advanced, character,
+  movement, instruments_detected, music_for, vocals_detected, vocal_style: tuple[str, ...]|None ·
+  vocal_presence, vocal_gender, key, tempo, time_signature, energy_level, emotion_profile, musical_era,
+  auto_description, tag_source, tagged_at: str|None · voiceover_degree, bpm_confidence, key_confidence, valence,
+  arousal, ai_music_score, bpm_detected: float|None · voiceover_dominant, is_ai_music: bool|None ·
+  production_year: int|None ·
+  has_alternatives: bool|None · term_matches: int|None (lexical search only) · child_tracks: tuple[Track, ...] (get() only)
+  Methods: redacted_asset_url() -> str|None
+
+TrackPage   (iterating a page iterates .data; len(page) == len(page.data))
+  data: tuple[Track, ...] · total: int · page: int · limit: int · request_id: str|None ·
+  retried_after_refundable_failure: bool ·
+  search metadata (tracks.list with a non-empty search only): matched: tuple[SearchMatch] · unmatched_terms:
+  tuple[str] · corrections: tuple[SearchCorrection] · relaxed: bool|None · coverage: SearchCoverage|None ·
+  ignored_terms: tuple[str] · hint: str|None ·
+  constraints: SearchConstraints|None (set whenever a hard constraint was applied)
+  Methods: has_next_page() -> bool (page * limit < total and data non-empty)
+SearchMatch: term, field, value: str; partial: bool
+SearchCorrection: from_: str (wire "from"), to: str
+SearchCoverage: terms: int; levels: tuple[CoverageLevel(matched: int, rows: int)]
+SearchConstraints: vocals, key: str|None; bpm: tuple[float, float]|None; duration: DurationConstraint|None
+  (min, max: float|None; widened: bool); empty_because: tuple[EmptyConstraintReason(constraint: str,
+  rows_without: int, rows_with: int|None)] (which constraint to loosen when nothing matched)
+
+SyncLink
+  id: int · title, artist: str|None · format: str ("wav") · file_name: str · download_url: str (bearer capability) ·
+  expires_at: str (ISO 8601) · expires_in: int (seconds) · credits_charged: int · reissued: bool ·
+  external_export: bool · billing: SyncBilling(charged_on: str|None ("api_call"), note: str|None) ·
+  request_id: str|None · retried_after_refundable_failure: bool
+  Properties/methods: expires_at_datetime -> datetime|None (aware UTC) · redacted_download_url() -> str
+
+Taxonomies
+  genre, mood, theme, instrument, character, movement, vocals, tempo, energy, era, decade, key:
+  tuple[TaxonomyItem(value: str, count: int), ...] · facets: Mapping[str, tuple[TaxonomyItem]] (every facet returned,
+  including ones added later) · request_id
+  Methods: get(facet) -> tuple[TaxonomyItem] · values(facet) -> list[str]
+
+Credits
+  as_of: str · balance_source: str ("live" | "database") ·
+  api_credits: CreditBalance(balance: int, overdraft_limit: int, spendable: int)   # spendable = balance + overdraft
+  bandwidth_bytes: BandwidthBalance(balance, overdraft_limit, spendable: int) ·
+  expiring_credits: tuple[ExpiringBatch(api_credits: int, bandwidth_bytes: int, expires_at: str)] ·
+  costs: Mapping[str, int]  (YOUR live rate card, with plan discounts applied; the only correct input for budgeting) ·
+  standard_costs: Mapping[str, int] · discounts: Mapping[str, PlanDiscount(standard: int, plan_id: int|None, plan: str)] ·
+  subscription: SubscriptionInfo(plan_id: int, plan: str)|None ·
+  token: TokenUsage(name, public_code: str|None, api_calls_month: int, bandwidth_month_bytes: int,
+         month_reset_at, expires_at: str|None, daily_call_limit: int|None) · request_id
+
+HealthStatus: success: bool, status: str ("healthy"|"degraded"), http_status: int, version, environment, timestamp:
+  str|None, uptime: float|None, database: DatabaseCheck(status, latency: str|None, latency_ms: float|None)|None,
+  retry_after: float|None, request_id; property healthy
+LivenessStatus: success, status ("alive"), http_status, request_id; property alive
+ReadinessStatus: success, status ("ready"|"not ready"), http_status, database, billing: BillingCheck(status,
+  required: bool|None, mode: str|None)|None, retry_after, request_id; property ready
+
+Hook events (immutable, already redacted):
+  RequestEvent: operation, sdk_call_id (UUID, constant across retries, never sent), attempt (1-based), method, url
+    (sig redacted), headers (Authorization → "Bearer [REDACTED fp=…]"), cost_key, projected_credits, body
+    (only with hook_include_bodies=True; redacted, <= 64 KiB)
+  ResponseEvent: operation, sdk_call_id, attempt, method, url, status, headers (allowlisted: content-type,
+    content-length, content-encoding, x-request-id, retry-after, cache-control, cf-ray, date), request_id,
+    duration_ms, will_retry, retry_in_ms, cost_key, projected_credits, body
+  ErrorEvent: operation, sdk_call_id, attempt, method, url, error (redacted typed error), charge_state, status,
+    request_id, duration_ms, will_retry, retry_in_ms, cost_key, projected_credits
+  LowCreditEvent: spendable: int, balance, overdraft_limit: int|None, threshold: int, source ("credits" |
+    "insufficient_credits" | "estimate" | "response_header"), as_of, token_public_code
+
+Other exports: CallOptions (per-call options, section 2), Secret (redacting key wrapper: .fingerprint, .redacted()),
+ClientConfig, NOT_GIVEN/NotGiven,
+SyncPageIterator, AsyncPageIterator, ENDPOINTS (read-only endpoint registry), PUBLIC_COST_KEYS, EndpointSpec,
+OperationSpec, Transport, AsyncTransport, HTTPTransport, AsyncExecutorTransport, PreparedRequest, RawResponse,
+AsyncRawResponse, Headers, __version__.
+
+======================================================================================================================
+4. BILLING AND CREDITS
+======================================================================================================================
+
+Audio route         | Getting the link                                              | Moving the bytes
+WAV master (sync)   | CHARGED at sync / export_sync for a new 1-hour window;        | FREE: download as often as you like
+                    | reissues inside the paid window are free                      | while the link is valid
+MP3 preview         | FREE: comes with the listing/search/detail call you paid for  | Intended to be billed per stream
+(asset_url)         |                                                               | (costs.stream) from API credits in a
+                    |                                                               | future update (metered today, not
+                    |                                                               | yet deducted)
+
+Public cost keys (client.credits.retrieve().costs; rightsfoundry.PUBLIC_COST_KEYS):
+  tracks_list                GET /v1/tracks without a non-empty search (any page)
+  tracks_search_first_page   GET /v1/tracks with search, page 1
+  tracks_search_next_page    GET /v1/tracks with search, page >= 2
+  track_detail               GET /v1/tracks/{id} (only when the track exists)
+  deep_search_first_page     POST /v1/tracks/deep-search, page 1 (every time it is sent)
+  deep_search_next_page      POST /v1/tracks/deep-search, page >= 2
+  file_search_first_page     POST /v1/tracks/search, page 1 (every time it is sent)
+  file_search_next_page      POST /v1/tracks/search, page >= 2
+  sync                       POST /v1/tracks/{id}/sync, new standard window
+  export_sync                POST /v1/tracks/{id}/sync with external_export=true, new Export Sync window
+  stream                     preview playback; intended to be billed from API credits in a future update (metered
+                             today, not yet deducted)
+Free: GET /v1/taxonomies, GET /v1/credits (also uncounted), health, signed-URL downloads, sync reissues in the window.
+
+Balances are per account: every token on the account shares one pool. spendable = balance + overdraft_limit, and the
+balance may go negative within the overdraft. 402 InsufficientCreditsError when the cost would exceed the overdraft
+floor. Top up at https://therightsfoundry.com/dashboard/billing.
+
+What each licence grants (summary only; https://therightsfoundry.com/licensing is authoritative):
+  Stream/preview (asset_url): a single-time stream, or use to preview a potential sync licence.
+  Standard sync (tracks.sync(id)): one-time synchronization of the track and use of the resulting content on online
+    third-party platforms, without monetization.
+  Export Sync (tracks.sync(id, external_export=True)): standard sync, plus use of the synced output or audio file
+    offline, or placing/exporting/distributing it outside the platform (client delivery, broadcast, social media,
+    offline playback).
+  No licence includes AI/ML training rights (see https://therightsfoundry.com/licensed-ai-training-data).
+
+======================================================================================================================
+5. CREDIT GUARDRAILS (client-side, advisory; the server's 402 is the authority)
+======================================================================================================================
+
+Projection: the SDK reads costs from GET /v1/credits (free), caches it for rate_card_ttl_ms (60 s), and picks the
+same cost key the server will. If the rate card has no price for the key, the projection is "unknown".
+- max_credits_per_request (client) / max_credits= (per call; replaces the client cap for that call):
+    projected > cap → CreditCapExceededError(projected, cap, cost_key). Nothing is sent.
+- guard_failure_mode="closed" (default): rate card unreadable or price unknown while a cap/preflight is active →
+    CreditGuardUnavailableError. "open": log a warning and proceed.
+- auto_check_credits=True: before each charged call, refresh the balance snapshot if older than credit_check_ttl_ms
+    (30 s), estimate spendable − Σ projected spend since the snapshot, and raise PreflightInsufficientCreditsError
+    (resource="api_credits") if the call would take it below 0. min_bandwidth_bytes adds a floor on
+    bandwidth_bytes.spendable (resource="bandwidth").
+- low_credit_warning_threshold + on_low_credit(event: LowCreditEvent): edge-triggered (fires once per drop below the
+    threshold, re-arms after an observation at or above it). Observations come from credits.retrieve(), 402 bodies and
+    (with auto_check_credits) local estimates. Without a callback it logs a warning. Callback exceptions are logged,
+    never raised. Do not do slow work inline.
+- Iterators: max_credits is a budget for the whole walk → CreditBudgetExceededError(spent_projected, next_cost, cap,
+    cost_key) before the page that would exceed it.
+
+======================================================================================================================
+6. ERRORS
+======================================================================================================================
+
+Every error subclasses rightsfoundry.RightsFoundryError and has: message, status, request_id, operation,
+server_error, server_message, body (redacted parsed JSON), charge_state, retry_after (seconds), attempts, code.
+str(err) includes request_id. Errors hold only redacted data and can be pickled (redacted state only).
+
+RightsFoundryError
+├── ConfigurationError                     invalid option at construction                          not_charged
+├── ValidationError                        client-side input check failed; nothing sent            not_charged
+│   └── InvalidTrackIdError
+├── IteratorConsumedError                  a single-use page iterator was iterated again (also RuntimeError)
+├── CreditGuardError                       client-side guard tripped; nothing sent                 not_charged
+│   ├── CreditCapExceededError             .projected .cap .cost_key
+│   ├── CreditBudgetExceededError          .spent_projected .next_cost .cap .cost_key
+│   ├── PreflightInsufficientCreditsError  .projected .api_credits / .bandwidth_bytes .resource
+│   └── CreditGuardUnavailableError
+├── APIConnectionError                     DNS/refused/reset/TLS; .phase connect|write|read        connect → not_charged; else unknown
+│   ├── APITimeoutError                    .phase connect|read|write|total
+│   └── TLSVerificationError               certificate/hostname failure; NEVER retried             not_charged
+├── ResponseTooLargeError                  .max_bytes .observed_bytes
+├── UnexpectedRedirectError                any 3xx; never followed; .location (redacted)
+├── UnexpectedResponseError                non-JSON or wrong shape (e.g. an edge HTML 502)
+├── APIStatusError                         non-2xx JSON from the API
+│   ├── BadRequestError                    400                                                     not_charged
+│   │   └── UnreachableFileError           400 "Could not download or decode the audio at file_url.   CHARGED (no refund)
+│   │                                      It must be a publicly reachable .mp3 or .wav under 120MB."
+│   ├── AuthenticationError                401 "Missing authorization header"                      not_charged
+│   ├── InsufficientCreditsError           402 "Insufficient credits. Please top up to continue."  not_charged
+│   │                                      .api_credits .bandwidth_bytes (balance before the refused charge)
+│   ├── PermissionDeniedError              403                                                     not_charged
+│   │   ├── InvalidTokenError              "Invalid API token" (also: a key from the other environment)
+│   │   ├── InactiveTokenError             "API token is inactive"
+│   │   ├── ExpiredTokenError              "API token has expired" (MCP connections only)
+│   │   └── FeatureNotEnabledError         .feature "deep_search": "Deep Search is not enabled for this API token.
+│   │                                        Contact support to enable it." / "sync": "Sync licensing is not enabled
+│   │                                        for this API token. Contact support to enable it."
+│   ├── NotFoundError                      404 (also "Account not found", "Not found")             not_charged
+│   │   ├── TrackNotFoundError             "Track not found"
+│   │   └── SyncMasterUnavailableError     "No sync master is available for this track" / asset-host 404
+│   ├── MethodNotAllowedError              405 (an SDK bug if ever seen)                           not_charged
+│   ├── GoneError                          410 retired endpoint (only via client.request)          not_charged
+│   ├── RateLimitError                     429 .retry_after                                        not_charged
+│   │   └── DailyCallLimitError            "Daily call limit reached for this connection. It resets at 00:00 UTC."
+│   │                                      .limit .reset_at (MCP connections only; dashboard keys have no cap)
+│   ├── InternalServerError                500 "Internal server error"; .refund_pending             refund_pending (charged ops)
+│   └── ServiceUnavailableError            503 .retry_after
+│       ├── BillingUnavailableError        "Billing is temporarily unavailable. Please retry shortly."   not_charged
+│       │                                  (request not served; a pending deduction is cancelled; the API docs call
+│       │                                   this "deduction unconfirmed": check credits.retrieve() if it matters)
+│       └── SearchUnavailableError         "Search is temporarily unavailable, please retry."      refund_pending
+├── SyncLinkError                          asset-host failure during download                      not_charged
+│   ├── SyncLinkExpiredError               link expired (re-minting after expiry is charged again)
+│   └── SyncLinkInvalidError               malformed / not allowlisted / 403 Invalid signature / 400 Missing signature parameters
+└── HealthCheckError                       health probe could not reach the API (a 503 answer is a value, not this)
+
+Other 400 messages (all BadRequestError, not charged): "limit must be an integer", "limit must be at least 1",
+"page must be an integer", "page must be at least 1", "Invalid track ID", "Request body must be valid JSON",
+"query is required", "query is no longer supported on this endpoint; use POST /v1/tracks/deep-search",
+"file_url is required", "file_url must be a valid URL", "file_url must be an http(s) URL",
+"file_url must point to an .mp3 or .wav file", and "Bad Request" with a message detail on the sync body.
+Classification: an exact (status, error text) match, then a fallback to the status family. An unknown 403 message
+becomes PermissionDeniedError, never a generic error. Free operations (credits, taxonomies, health) always report
+not_charged. Read-phase failures, 408, 502 and 504 on charged operations report "unknown".
+
+======================================================================================================================
+7. RETRIES
+======================================================================================================================
+
+Retry classes: "free" (taxonomies, credits, health), "sync" (tracks.sync), "charged" (list, get, deep_search,
+search_similar, and unknown request() paths). The API does not honour idempotency keys yet, and charged routes charge
+before doing the work.
+
+Outcome                                   | free  | sync  | charged + refund_backed (default) | never | always
+Connect failure (request never written)   | retry | retry | retry                             | retry | retry
+429                                       | retry*| retry*| retry*                            | retry*| retry*
+503 billing unavailable (not served)      | retry | retry | retry                             | no    | retry
+503 search unavailable (refunded)         |   –   |   –   | retry                             | no    | retry
+500 (refund queued)                       | retry | retry | retry                             | no    | retry
+408 / 502 / 504 (unknown)                 | retry | retry | NO (retry with idempotency_key)   | no    | retry
+Read timeout / reset after send           | retry | retry | NO (retry with idempotency_key)   | no    | retry
+* only if Retry-After <= max_retry_after_ms (30 s default); otherwise the typed error is raised with .retry_after.
+idempotency_key=: when a key is supplied, ambiguous outcomes (408, 502, 504, read-phase connection failures) are
+retried even under "refund_backed", so the call gets full retry safety as soon as the API honours the header. Today the
+server ignores it, so such a retry can still be charged twice; reconcile with credits.retrieve() if that matters.
+max_retries= per call replaces the client's max_retries. Health probes default to max_retries=0.
+Never retried: 400, 401, 402, 403, 404, 405, 410, TLSVerificationError, ResponseTooLargeError, UnexpectedRedirectError,
+any ValidationError/CreditGuardError.
+Backoff for attempt n: base = min(retry_max_delay_ms, retry_initial_delay_ms * 2^(n-1)); jitter "full" =
+uniform(0, base) (CSPRNG), "equal" = base/2 + uniform(0, base/2), "none" = base. Never sooner than Retry-After
+(delta-seconds or IMF-fixdate). Stops early if total_timeout would be exceeded. Defaults: max_retries=2, 500 ms → 8 s.
+A success that follows a refundable failure sets retried_after_refundable_failure=True on TrackPage/SyncLink.
+
+======================================================================================================================
+8. CONFIGURATION (keyword > environment variable (read once) > default; all validated at construction)
+======================================================================================================================
+
+api_key                    TRF_API_KEY                   required (except unauthenticated()); 128 hex chars, trimmed, lowercased.
+                                                         A 4-char public code is rejected with a hint. api_key=None does NOT read the env.
+environment                TRF_ENVIRONMENT               "production" (default) | "staging"
+base_url                   TRF_BASE_URL                  https only; host must be api.therightsfoundry.com, api-staging.therightsfoundry.com,
+                                                         or match allowed_hosts; no IP literals, userinfo, query or fragment
+allowed_hosts              (code only)                   extra gateway hosts (exact, or one leading "*." label)
+asset_hosts                (code only)                   default ("assets.therightsfoundry.com",)
+ca_bundle                  TRF_CA_BUNDLE                 readable PEM file trusted instead of the system store; verification stays on
+proxy_url                  HTTPS_PROXY / NO_PROXY        http:// or https:// CONNECT proxy (https: TLS to the proxy, then CONNECT, then
+                                                         TLS to the API); credentials redacted everywhere. Other schemes (socks5://, …)
+                                                         raise ConfigurationError naming the source (proxy_url or HTTPS_PROXY)
+connect_timeout            TRF_CONNECT_TIMEOUT           10 s (0.1–120)
+read_timeout               TRF_READ_TIMEOUT              60 s (1–600), idle time per read
+write_timeout              –                             30 s (1–600)
+total_timeout              –                             None; >= read_timeout when set; wall clock across attempts
+max_retries                TRF_MAX_RETRIES               2 (0–10)
+retry_initial_delay_ms     –                             500 (50–60000)
+retry_max_delay_ms         –                             8000 (>= initial, <= 300000)
+jitter                     –                             "full" | "equal" | "none"
+max_retry_after_ms         –                             30000 (0–600000)
+retryable_status_codes     –                             (408, 429, 500, 502, 503, 504); 400–407 and 409–428 are refused
+charged_retry_policy       –                             "refund_backed" | "never" | "always"
+max_credits_per_request    TRF_MAX_CREDITS_PER_REQUEST   None (>= 0)
+low_credit_warning_threshold TRF_LOW_CREDIT_WARNING_THRESHOLD  None (any int; negative allowed for overdraft)
+on_low_credit              –                             callable(LowCreditEvent)
+auto_check_credits         TRF_AUTO_CHECK_CREDITS        False (env: true/false/1/0 only)
+credit_check_ttl_ms        –                             30000 (1000–3600000)
+rate_card_ttl_ms           –                             60000 (1000–3600000)
+guard_failure_mode         –                             "closed" | "open"
+min_bandwidth_bytes        –                             None
+on_request/on_response/on_error  –                       callables(event); synchronous; exceptions logged, not raised
+hook_include_bodies        –                             False
+custom_headers             –                             X-[A-Za-z0-9-]{1,64} (except X-Admin-Token, X-API-Key, X-Forwarded-*, X-Real-IP,
+                                                         X-Request-Id, X-Original-*, X-Http-Method-Override, X-Middleware-*) or
+                                                         traceparent/tracestate/baggage; values printable ASCII <= 1024 bytes; API host only
+user_agent_suffix          TRF_USER_AGENT_SUFFIX         printable ASCII product tokens <= 128 chars
+transport / async_transport  –                           custom Transport / AsyncTransport (see docs/architecture.md)
+logger                     TRF_LOG                       logging.Logger; TRF_LOG = off|error|warn|info|debug
+max_connections            –                             10 (1–256)
+max_response_bytes         –                             10 MiB (64 KiB–100 MiB)
+max_download_bytes         –                             2 GiB (>= 1 MiB)
+max_concurrency            –                             None; limits in-flight requests per AsyncClient
+taxonomies_cache_ttl_ms    –                             0 (off; up to 86400000)
+allow_insecure_localhost   (code only)                   http:// to localhost/127.0.0.1/[::1], only when environment != "production"
+dangerously_allow_browser  (code only)                   False; Pyodide/WASM is refused unless True (do not set it)
+No environment variable can enable http://, add an allowed host, make a guard fail open, or weaken TLS.
+
+======================================================================================================================
+9. SECURITY RULES (summary of SEC-01..SEC-20)
+======================================================================================================================
+
+- Zero runtime dependencies. Standard library only.
+- TLS 1.2+, CERT_REQUIRED, hostname checking, with the SDK's own SSLContext. There is no verify=False.
+- Redirects are never followed (UnexpectedRedirectError), so the key cannot be carried to another host.
+- The key is wrapped in Secret: repr/str/format show "[REDACTED fp=xxxxxxxx]", pickling raises, comparison is
+  constant-time. fp = first 8 hex chars of sha256("rightsfoundry-key-fp:" + key), the same value
+  /dashboard/token shows.
+- Everything that reaches logs, hooks or exceptions is redacted: Authorization values, the key, any 128+ hex run,
+  sig= query values, URL userinfo, and "Bearer <token>" text.
+- Track IDs: ASCII digits only, 1–15. Query parameters are allowlisted and typed. JSON bodies are built from typed
+  fields only.
+- Bounded response bodies (decompressed bytes counted), JSON depth <= 64, NaN/Infinity rejected.
+- Downloads: allowlisted host, https, port 443, /stream/ path, exactly expires+sig, no credentials, atomic 0600
+  writes, symlinks refused.
+- Fork-safe connection pool. CSPRNG jitter. Monotonic deadlines. No telemetry.
+- In your application: keep the key on the server, never in browser/mobile code. Read it from a secret manager for
+  long-running services. Never log signed URLs. Never paste keys or signed URLs into issues or prompts.
+
+======================================================================================================================
+10. COPY-PASTE PATTERNS
+======================================================================================================================
+
+# --- Brief → license → download (sync) ------------------------------------------------------------------------------
+import rightsfoundry
+
+with rightsfoundry.Client(max_credits_per_request=100) as client:
+    costs = client.credits.retrieve().costs                       # free
+    results = client.tracks.deep_search("warm hopeful acoustic guitar", limit=20, instrumental=True)
+    if results.data:
+        track = results.data[0]
+        link = client.tracks.sync(track.id)                         # charged at costs["sync"] (0 if reissued)
+        path = client.sync_links.download(link, "./masters/")       # free
+        print(track.title, link.credits_charged, link.redacted_download_url(), path)
+
+# --- Same, async -----------------------------------------------------------------------------------------------------
+import asyncio
+import rightsfoundry
+
+async def main() -> None:
+    async with rightsfoundry.AsyncClient(max_credits_per_request=100) as client:
+        results = await client.tracks.deep_search("tense heist build-up", limit=20)
+        if results.data:
+            link = await client.tracks.sync(results.data[0].id)
+            await client.sync_links.download(link, "./masters/")
+        async for t in client.tracks.iter(mood="calm", max_items=200, max_credits=10):
+            print(t.id, t.title)
+
+asyncio.run(main())
+
+# --- Error handling with charge state --------------------------------------------------------------------------------
+import rightsfoundry as rf
+
+try:
+    page = client.tracks.search_similar("https://cdn.example.com/temp-track.mp3", max_credits=20)
+except rf.ValidationError as e:              # bad URL caught locally: nothing sent, nothing charged
+    print("fix the URL:", e)
+except rf.UnreachableFileError as e:          # charged, not refunded
+    print("provider could not fetch the file; charge_state =", e.charge_state, "request", e.request_id)
+except rf.InsufficientCreditsError as e:
+    print("top up; balance was", e.api_credits)
+except rf.APIStatusError as e:
+    print(e.status, e.charge_state, e.request_id)
+
+# --- Budgeted export ---------------------------------------------------------------------------------------------------
+it = client.tracks.iter(genre="ambient", max_items=500, max_credits=20)
+try:
+    for t in it:
+        save(t.id, t.title, t.genres)
+except rf.CreditBudgetExceededError as e:
+    print("budget reached; next page would cost", e.next_cost)
+
+# --- Server endpoint returning only safe fields to a browser -------------------------------------------------------
+def to_browser(t: rf.Track) -> dict:
+    return {"id": t.id, "title": t.title, "artist": t.artist, "duration": t.duration, "preview_url": t.asset_url}
+
+# --- Health without a key ------------------------------------------------------------------------------------------
+status = rf.Client.unauthenticated().health.check()
+print(status.healthy, status.http_status)
+
+======================================================================================================================
+11. CLI AND GITHUB ACTION
+======================================================================================================================
+
+CLI (key from TRF_API_KEY only; --json for raw JSON, ASCII-escaped; --environment staging). Global flags work before
+or after the subcommand:
+  rightsfoundry health [--mode check|live|ready]
+  rightsfoundry credits
+  rightsfoundry taxonomies [--facet NAME]
+  rightsfoundry search [QUERY] [--genre --mood --instrument --theme --vocals --key --bpm-min --bpm-max
+                       --duration-min --duration-max --page --limit --max-credits]
+  rightsfoundry deep-search QUERY [--limit --page --instrumental --max-credits]
+  rightsfoundry similar FILE_URL [--limit --page --instrumental --max-credits]
+  rightsfoundry track ID
+  rightsfoundry sync ID [--external-export --download DIR_OR_FILE --overwrite --max-credits]
+  Exit codes: 0 ok, 1 API/network error, 2 usage/validation/guard error, 3 health not healthy.
+
+GitHub Action: uses: therightsfoundry/trf-python@v1 (pin to a commit SHA in production). Needs Python >= 3.9 on the
+  runner and runs it in isolated mode (python3 -I), so nothing in the checked-out workspace can be imported.
+  inputs: action (deep-search|search|search-similar|track|sync|credits|health), api-key (from secrets), environment,
+  query, track-id, file-url, genre, mood, instrument, vocals, bpm-min, bpm-max, duration-min, duration-max,
+  instrumental, limit (default 20), external-export, download-path, max-credits
+  outputs: result-json (sig redacted), track-id, track-title, track-artist, downloaded-file, credits-charged,
+  credits-spendable, request-id
+  See https://github.com/therightsfoundry/trf-python/blob/main/docs/github-action.md
+
+======================================================================================================================
+12. AGENTS AND MCP
+======================================================================================================================
+
+MCP connector: https://mcp.therightsfoundry.com/mcp (remote, OAuth sign-in with the user's Rights Foundry account;
+the agent never handles an API key). Server card: https://mcp.therightsfoundry.com/.well-known/mcp/server-card.json
+Use the SDK instead when you run your own backend or agent loop. Tool schemas and safety rules:
+https://github.com/therightsfoundry/trf-python/blob/main/docs/llm-and-mcp-guide.md
+Builder overview: https://therightsfoundry.com/for-builders (cleared, human-made music for apps, agents and pipelines)
+
+Support: https://docs.therightsfoundry.com/ · info@therightsfoundry.com · security: security@therightsfoundry.com

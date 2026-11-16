@@ -1,0 +1,2936 @@
+{
+  "$comment": "Language-neutral conformance fixtures for The Rights Foundry SDKs. Every SDK runs every case against an in-process mock. args use the Python/Ruby snake_case names; expected_request uses wire names.",
+  "version": 1,
+  "api_version": "v1",
+  "cases": [
+    {
+      "name": "list: filters are serialised with wire names",
+      "operation": "tracks.list",
+      "args": {
+        "genre": "jazz",
+        "vocals": "instrumental",
+        "bpm_min": 90,
+        "bpm_max": 120.5,
+        "duration_max": 180,
+        "include_children": true,
+        "sort_by": "bpm",
+        "sort_order": "asc",
+        "key": "A minor",
+        "limit": 20
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {
+          "bpmMax": "120.5",
+          "bpmMin": "90",
+          "durationMax": "180",
+          "genre": "jazz",
+          "includeChildren": "true",
+          "key": "A minor",
+          "limit": "20",
+          "sortBy": "bpm",
+          "sortOrder": "asc",
+          "vocals": "instrumental"
+        },
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": 29446060,
+                "title": "Golden Hour",
+                "artist": "Ada Lane",
+                "duration": 142.5,
+                "bpm": 96,
+                "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                "peak_data_url": null,
+                "genres": [
+                  "folk"
+                ],
+                "moods": [
+                  "hopeful"
+                ],
+                "main_genre": null,
+                "has_alternatives": false
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "limit": 20
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "TrackPage",
+        "attempts": 1,
+        "fields": {
+          "total": 1,
+          "request_id": "req-200"
+        }
+      }
+    },
+    {
+      "name": "list: search metadata",
+      "operation": "tracks.list",
+      "args": {
+        "search": "  dark epic  ",
+        "page": 2
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {
+          "search": "dark epic",
+          "page": "2"
+        },
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": 29446060,
+                "title": "Golden Hour",
+                "artist": "Ada Lane",
+                "duration": 142.5,
+                "bpm": 96,
+                "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                "peak_data_url": null,
+                "genres": [
+                  "folk"
+                ],
+                "moods": [
+                  "hopeful"
+                ],
+                "main_genre": null,
+                "has_alternatives": false
+              }
+            ],
+            "total": 1,
+            "page": 2,
+            "limit": 20,
+            "matched": [
+              {
+                "term": "dark",
+                "field": "mood",
+                "value": "dark"
+              }
+            ],
+            "unmatched_terms": [
+              "epic"
+            ],
+            "corrections": [
+              {
+                "from": "orchestal",
+                "to": "orchestral"
+              }
+            ],
+            "relaxed": true,
+            "coverage": {
+              "terms": 2,
+              "levels": [
+                {
+                  "matched": 1,
+                  "rows": 1
+                }
+              ]
+            },
+            "constraints": {
+              "empty_because": [
+                {
+                  "constraint": "vocals",
+                  "rows_without": 12
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "TrackPage",
+        "attempts": 1,
+        "fields": {
+          "relaxed": true,
+          "page": 2
+        }
+      }
+    },
+    {
+      "name": "get: track with children",
+      "operation": "tracks.get",
+      "args": {
+        "track_id": 29446060
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks/29446060",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": {
+              "id": 29446060,
+              "title": "Golden Hour",
+              "artist": "Ada Lane",
+              "duration": 142.5,
+              "bpm": 96,
+              "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+              "peak_data_url": null,
+              "genres": [
+                "folk"
+              ],
+              "moods": [
+                "hopeful"
+              ],
+              "main_genre": null,
+              "has_alternatives": true,
+              "child_tracks": [
+                {
+                  "id": 29446061,
+                  "title": "Golden Hour",
+                  "artist": "Ada Lane",
+                  "duration": 142.5,
+                  "bpm": 96,
+                  "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                  "peak_data_url": null,
+                  "genres": [
+                    "folk"
+                  ],
+                  "moods": [
+                    "hopeful"
+                  ],
+                  "main_genre": null,
+                  "has_alternatives": false
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "Track",
+        "attempts": 1,
+        "fields": {
+          "id": 29446060,
+          "has_alternatives": true
+        }
+      }
+    },
+    {
+      "name": "deep_search: typed body",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "warm hopeful acoustic guitar",
+        "limit": 50,
+        "instrumental": true
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "warm hopeful acoustic guitar",
+          "page": 1,
+          "limit": 50,
+          "instrumental": true
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": 29446060,
+                "title": "Golden Hour",
+                "artist": "Ada Lane",
+                "duration": 142.5,
+                "bpm": 96,
+                "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                "peak_data_url": null,
+                "genres": [
+                  "folk"
+                ],
+                "moods": [
+                  "hopeful"
+                ],
+                "main_genre": null,
+                "has_alternatives": false
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "limit": 50
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "TrackPage",
+        "attempts": 1,
+        "fields": {
+          "limit": 50
+        }
+      }
+    },
+    {
+      "name": "search_similar: typed body",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/ref/temp-track.mp3"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/ref/temp-track.mp3",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": 29446060,
+                "title": "Golden Hour",
+                "artist": "Ada Lane",
+                "duration": 142.5,
+                "bpm": 96,
+                "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                "peak_data_url": null,
+                "genres": [
+                  "folk"
+                ],
+                "moods": [
+                  "hopeful"
+                ],
+                "main_genre": null,
+                "has_alternatives": false
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "limit": 20,
+            "did_you_mean": [],
+            "search_type": null
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "TrackPage",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "sync: standard",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": "29446060"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/29446060/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": {
+              "id": 29446060,
+              "title": "Golden Hour",
+              "artist": "Ada Lane",
+              "format": "wav",
+              "file_name": "29446060_track.wav",
+              "download_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.wav?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+              "expires_at": "2100-01-01T00:00:00.000Z",
+              "expires_in": 3600,
+              "credits_charged": 10,
+              "reissued": false,
+              "external_export": false,
+              "billing": {
+                "charged_on": "api_call",
+                "note": "..."
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "SyncLink",
+        "attempts": 1,
+        "fields": {
+          "credits_charged": 10,
+          "reissued": false
+        }
+      }
+    },
+    {
+      "name": "sync: export",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 29446060,
+        "external_export": true
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/29446060/sync",
+        "query": {},
+        "body": {
+          "external_export": true
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": {
+              "id": 29446060,
+              "title": "Golden Hour",
+              "artist": "Ada Lane",
+              "format": "wav",
+              "file_name": "29446060_track.wav",
+              "download_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.wav?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+              "expires_at": "2100-01-01T00:00:00.000Z",
+              "expires_in": 3600,
+              "credits_charged": 25,
+              "reissued": false,
+              "external_export": true,
+              "billing": {
+                "charged_on": "api_call",
+                "note": "..."
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "SyncLink",
+        "attempts": 1,
+        "fields": {
+          "external_export": true,
+          "credits_charged": 25
+        }
+      }
+    },
+    {
+      "name": "sync: free reissue",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 29446060
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/29446060/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": {
+              "id": 29446060,
+              "title": "Golden Hour",
+              "artist": "Ada Lane",
+              "format": "wav",
+              "file_name": "29446060_track.wav",
+              "download_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.wav?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+              "expires_at": "2100-01-01T00:00:00.000Z",
+              "expires_in": 3600,
+              "credits_charged": 0,
+              "reissued": true,
+              "external_export": false,
+              "billing": {
+                "charged_on": "api_call",
+                "note": "..."
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "SyncLink",
+        "attempts": 1,
+        "fields": {
+          "credits_charged": 0,
+          "reissued": true
+        }
+      }
+    },
+    {
+      "name": "taxonomies",
+      "operation": "taxonomies.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/taxonomies",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": {
+              "genre": [
+                {
+                  "value": "jazz",
+                  "count": 812
+                }
+              ],
+              "mood": [],
+              "theme": [],
+              "instrument": [],
+              "character": [],
+              "movement": [],
+              "vocals": [],
+              "tempo": [],
+              "energy": [],
+              "era": [],
+              "decade": [],
+              "key": []
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "Taxonomies",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "credits",
+      "operation": "credits.retrieve",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/credits",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "as_of": "2026-11-16T10:00:00.000Z",
+            "balance_source": "live",
+            "api_credits": {
+              "balance": 1200,
+              "overdraft_limit": 2500,
+              "spendable": 3700
+            },
+            "bandwidth_bytes": {
+              "balance": 0,
+              "overdraft_limit": 0,
+              "spendable": 0
+            },
+            "expiring_credits": [],
+            "costs": {
+              "tracks_list": 1,
+              "sync": 10
+            },
+            "standard_costs": {
+              "tracks_list": 1,
+              "sync": 10
+            },
+            "discounts": {},
+            "subscription": null,
+            "token": {
+              "name": "Default",
+              "public_code": "AB12",
+              "api_calls_month": 0,
+              "bandwidth_month_bytes": 0,
+              "month_reset_at": null,
+              "expires_at": null,
+              "daily_call_limit": null
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "Credits",
+        "attempts": 1,
+        "fields": {
+          "balance_source": "live"
+        }
+      }
+    },
+    {
+      "name": "health.check 200",
+      "operation": "health.check",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/health",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "Authorization",
+          "X-Admin-Token",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "status": "healthy",
+            "version": "v1",
+            "environment": "production",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            "uptime": 3,
+            "checks": {
+              "database": {
+                "status": "healthy",
+                "latency": "3ms",
+                "latency_ms": 3
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "HealthStatus",
+        "attempts": 1,
+        "fields": {
+          "status": "healthy",
+          "http_status": 200
+        }
+      }
+    },
+    {
+      "name": "health.check 503 is a value at once (probes default to max_retries=0)",
+      "operation": "health.check",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/health",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "Authorization",
+          "X-Admin-Token",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "status": "degraded",
+            "version": "v1",
+            "environment": "production",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            "uptime": 3,
+            "checks": {
+              "database": {
+                "status": "unhealthy",
+                "latency": "1500ms",
+                "latency_ms": 1500
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "HealthStatus",
+        "attempts": 1,
+        "fields": {
+          "status": "degraded",
+          "http_status": 503
+        }
+      }
+    },
+    {
+      "name": "health.check 503 is a value after opt-in retries (max_retries=2)",
+      "operation": "health.check",
+      "args": {
+        "max_retries": 2
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/health",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "Authorization",
+          "X-Admin-Token",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "status": "degraded",
+            "version": "v1",
+            "environment": "production",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            "uptime": 3,
+            "checks": {
+              "database": {
+                "status": "unhealthy",
+                "latency": "1500ms",
+                "latency_ms": 1500
+              }
+            }
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "status": "degraded",
+            "version": "v1",
+            "environment": "production",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            "uptime": 3,
+            "checks": {
+              "database": {
+                "status": "unhealthy",
+                "latency": "1500ms",
+                "latency_ms": 1500
+              }
+            }
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "status": "degraded",
+            "version": "v1",
+            "environment": "production",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            "uptime": 3,
+            "checks": {
+              "database": {
+                "status": "unhealthy",
+                "latency": "1500ms",
+                "latency_ms": 1500
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "HealthStatus",
+        "attempts": 3,
+        "fields": {
+          "status": "degraded",
+          "http_status": 503
+        }
+      }
+    },
+    {
+      "name": "health.live",
+      "operation": "health.live",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/health/live",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "Authorization",
+          "X-Admin-Token",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "status": "alive"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "LivenessStatus",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "health.ready",
+      "operation": "health.ready",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/health/ready",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "Authorization",
+          "X-Admin-Token",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "status": "ready",
+            "checks": {
+              "database": {
+                "status": "healthy",
+                "latency": "2ms",
+                "latency_ms": 2
+              },
+              "billing": {
+                "status": "healthy",
+                "required": true,
+                "mode": "binding_presence"
+              }
+            }
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "ReadinessStatus",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 limit must be an integer",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "limit must be an integer"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 limit must be at least 1",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "limit must be at least 1"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 page must be an integer",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "page must be an integer"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 page must be at least 1",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "page must be at least 1"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Invalid track ID",
+      "operation": "tracks.get",
+      "args": {
+        "track_id": 1
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks/1",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Invalid track ID"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Request body must be valid JSON",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "x"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "x",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Request body must be valid JSON"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 query is required",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "x"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "x",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "query is required"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 query is no longer supported on this endpoint; use POST /v1/tracks/deep-search",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "query is no longer supported on this endpoint; use POST /v1/tracks/deep-search"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 file_url is required",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "file_url is required"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 file_url must be a valid URL",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "file_url must be a valid URL"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 file_url must be an http(s) URL",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "file_url must be an http(s) URL"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 file_url must point to an .mp3 or .wav file",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "file_url must point to an .mp3 or .wav file"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 unreachable file is CHARGED",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Could not download or decode the audio at file_url. It must be a publicly reachable .mp3 or .wav under 120MB."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "UnreachableFileError",
+        "charge_state": "charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Bad Request: Request body must be valid JSON",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad Request",
+            "message": "Request body must be valid JSON"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Bad Request: Request body must be a JSON object",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad Request",
+            "message": "Request body must be a JSON object"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Bad Request: Unknown field(s): foo. Only external_export is accepted",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad Request",
+            "message": "Unknown field(s): foo. Only external_export is accepted"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "400 Bad Request: external_export must be a boolean",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 400,
+          "headers": {
+            "X-Request-Id": "req-400"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad Request",
+            "message": "external_export must be a boolean"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BadRequestError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "401 Missing authorization header",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 401,
+          "headers": {
+            "X-Request-Id": "req-401"
+          },
+          "body": {
+            "success": false,
+            "error": "Missing authorization header"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "AuthenticationError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "402 Insufficient credits",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 402,
+          "headers": {
+            "X-Request-Id": "req-402"
+          },
+          "body": {
+            "success": false,
+            "error": "Insufficient credits. Please top up to continue.",
+            "apiCredits": 3,
+            "bandwidthBytes": 0
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InsufficientCreditsError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 Invalid API token",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "Invalid API token"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InvalidTokenError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 API token is inactive",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "API token is inactive"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InactiveTokenError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 API token has expired",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "API token has expired"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "ExpiredTokenError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 Deep Search disabled",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "x"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "x",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "Deep Search is not enabled for this API token. Contact support to enable it."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "FeatureNotEnabledError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 Deep Search disabled on file search",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "Deep Search is not enabled for this API token. Contact support to enable it."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "FeatureNotEnabledError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 Sync disabled",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "Sync licensing is not enabled for this API token. Contact support to enable it."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "FeatureNotEnabledError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "403 unknown message falls back",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 403,
+          "headers": {
+            "X-Request-Id": "req-403"
+          },
+          "body": {
+            "success": false,
+            "error": "Some new reason"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "PermissionDeniedError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "404 Track not found (get)",
+      "operation": "tracks.get",
+      "args": {
+        "track_id": 9
+      },
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks/9",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 404,
+          "headers": {
+            "X-Request-Id": "req-404"
+          },
+          "body": {
+            "success": false,
+            "error": "Track not found"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "TrackNotFoundError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "404 Track not found (sync)",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 404,
+          "headers": {
+            "X-Request-Id": "req-404"
+          },
+          "body": {
+            "success": false,
+            "error": "Track not found"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "TrackNotFoundError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "404 No sync master",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 404,
+          "headers": {
+            "X-Request-Id": "req-404"
+          },
+          "body": {
+            "success": false,
+            "error": "No sync master is available for this track"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "SyncMasterUnavailableError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "404 Account not found",
+      "operation": "credits.retrieve",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/credits",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 404,
+          "headers": {
+            "X-Request-Id": "req-404"
+          },
+          "body": {
+            "success": false,
+            "error": "Account not found"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "NotFoundError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "404 Not found",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 404,
+          "headers": {
+            "X-Request-Id": "req-404"
+          },
+          "body": {
+            "success": false,
+            "error": "Not found"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "NotFoundError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "405 deep-search",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "x"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "x",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 405,
+          "headers": {
+            "X-Request-Id": "req-405"
+          },
+          "body": {
+            "success": false,
+            "error": "Use POST for /v1/tracks/deep-search"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "MethodNotAllowedError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "405 search",
+      "operation": "tracks.search_similar",
+      "args": {
+        "file_url": "https://cdn.example.com/a.wav"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/search",
+        "query": {},
+        "body": {
+          "file_url": "https://cdn.example.com/a.wav",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 405,
+          "headers": {
+            "X-Request-Id": "req-405"
+          },
+          "body": {
+            "success": false,
+            "error": "Use POST for /v1/tracks/search"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "MethodNotAllowedError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "405 sync",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 405,
+          "headers": {
+            "X-Request-Id": "req-405"
+          },
+          "body": {
+            "success": false,
+            "error": "Use POST for /v1/tracks/{id}/sync"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "MethodNotAllowedError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "410 creative-brief",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 410,
+          "headers": {
+            "X-Request-Id": "req-410"
+          },
+          "body": {
+            "success": false,
+            "error": "This endpoint moved to POST /v1/tracks/deep-search (Deep Search). Same request body and pricing."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "GoneError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "429 daily cap above ceiling",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 429,
+          "headers": {
+            "X-Request-Id": "req-429",
+            "Retry-After": "3600"
+          },
+          "body": {
+            "success": false,
+            "error": "Daily call limit reached for this connection. It resets at 00:00 UTC.",
+            "limit": 500
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "DailyCallLimitError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "500 on charged op, retried then refund pending",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 500,
+          "headers": {
+            "X-Request-Id": "req-500"
+          },
+          "body": {
+            "success": false,
+            "error": "Internal server error"
+          }
+        },
+        {
+          "status": 500,
+          "headers": {
+            "X-Request-Id": "req-500"
+          },
+          "body": {
+            "success": false,
+            "error": "Internal server error"
+          }
+        },
+        {
+          "status": 500,
+          "headers": {
+            "X-Request-Id": "req-500"
+          },
+          "body": {
+            "success": false,
+            "error": "Internal server error"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InternalServerError",
+        "charge_state": "refund_pending",
+        "attempts": 3
+      }
+    },
+    {
+      "name": "500 on charged op, policy never",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 500,
+          "headers": {
+            "X-Request-Id": "req-500"
+          },
+          "body": {
+            "success": false,
+            "error": "Internal server error"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InternalServerError",
+        "charge_state": "refund_pending",
+        "attempts": 1
+      },
+      "client": {
+        "charged_retry_policy": "never"
+      }
+    },
+    {
+      "name": "503 billing, retried",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "error": "Billing is temporarily unavailable. Please retry shortly."
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "error": "Billing is temporarily unavailable. Please retry shortly."
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "error": "Billing is temporarily unavailable. Please retry shortly."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "BillingUnavailableError",
+        "charge_state": "not_charged",
+        "attempts": 3
+      }
+    },
+    {
+      "name": "503 search, refunded",
+      "operation": "tracks.deep_search",
+      "args": {
+        "query": "x"
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/deep-search",
+        "query": {},
+        "body": {
+          "query": "x",
+          "page": 1,
+          "limit": 20,
+          "instrumental": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503"
+          },
+          "body": {
+            "success": false,
+            "error": "Search is temporarily unavailable, please retry."
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503"
+          },
+          "body": {
+            "success": false,
+            "error": "Search is temporarily unavailable, please retry."
+          }
+        },
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503"
+          },
+          "body": {
+            "success": false,
+            "error": "Search is temporarily unavailable, please retry."
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "SearchUnavailableError",
+        "charge_state": "refund_pending",
+        "attempts": 3
+      }
+    },
+    {
+      "name": "502 on charged op is not retried under refund_backed",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 502,
+          "headers": {
+            "X-Request-Id": "req-502"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad gateway"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "APIStatusError",
+        "charge_state": "unknown",
+        "attempts": 1
+      }
+    },
+    {
+      "name": "502 on sync op is retried",
+      "operation": "tracks.sync",
+      "args": {
+        "track_id": 5
+      },
+      "expected_request": {
+        "method": "POST",
+        "path": "/v1/tracks/5/sync",
+        "query": {},
+        "body": {
+          "external_export": false
+        },
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 502,
+          "headers": {
+            "X-Request-Id": "req-502"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad gateway"
+          }
+        },
+        {
+          "status": 502,
+          "headers": {
+            "X-Request-Id": "req-502"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad gateway"
+          }
+        },
+        {
+          "status": 502,
+          "headers": {
+            "X-Request-Id": "req-502"
+          },
+          "body": {
+            "success": false,
+            "error": "Bad gateway"
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "APIStatusError",
+        "charge_state": "unknown",
+        "attempts": 3
+      }
+    },
+    {
+      "name": "503 billing then success",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 503,
+          "headers": {
+            "X-Request-Id": "req-503",
+            "Retry-After": "5"
+          },
+          "body": {
+            "success": false,
+            "error": "Billing is temporarily unavailable. Please retry shortly."
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "X-Request-Id": "req-200"
+          },
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": 29446060,
+                "title": "Golden Hour",
+                "artist": "Ada Lane",
+                "duration": 142.5,
+                "bpm": 96,
+                "asset_url": "https://assets.therightsfoundry.com/stream/AB12/29446060/29446060_track.mp3?expires=4102444800&sig=0123456789abcdef0123456789abcdef",
+                "peak_data_url": null,
+                "genres": [
+                  "folk"
+                ],
+                "moods": [
+                  "hopeful"
+                ],
+                "main_genre": null,
+                "has_alternatives": false
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "limit": 20
+          }
+        }
+      ],
+      "expected_outcome": {
+        "model": "TrackPage",
+        "attempts": 2,
+        "fields": {
+          "retried_after_refundable_failure": true
+        }
+      }
+    },
+    {
+      "name": "R-1 code wins over text",
+      "operation": "tracks.list",
+      "args": {},
+      "expected_request": {
+        "method": "GET",
+        "path": "/v1/tracks",
+        "query": {},
+        "body": null,
+        "headers_present": [
+          "Authorization",
+          "User-Agent",
+          "Accept"
+        ],
+        "headers_absent": [
+          "X-Admin-Token",
+          "X-API-Key",
+          "Cookie"
+        ]
+      },
+      "canned_responses": [
+        {
+          "status": 402,
+          "headers": {
+            "X-Request-Id": "req-402"
+          },
+          "body": {
+            "success": false,
+            "error": "Reworded",
+            "code": "insufficient_credits",
+            "apiCredits": 0
+          }
+        }
+      ],
+      "expected_outcome": {
+        "error_class": "InsufficientCreditsError",
+        "charge_state": "not_charged",
+        "attempts": 1
+      }
+    }
+  ]
+}

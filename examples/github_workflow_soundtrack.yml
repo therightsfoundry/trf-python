@@ -1,0 +1,96 @@
+# Example workflow: find and license a soundtrack from a brief, then keep the WAV master as a build artifact.
+#
+# Copy to .github/workflows/soundtrack.yml in your own repository and add a repository secret named
+# TRF_API_KEY (Settings → Secrets and variables → Actions). Get a key at https://therightsfoundry.com/dashboard/token.
+#
+# Costs: the deep-search step is charged at costs.deep_search_first_page and the sync step at costs.sync
+# (free if this account already holds a live link for the track). max-credits refuses either call if it
+# would cost more. Read your live rates with the `credits` action or https://docs.therightsfoundry.com.
+#
+# Security notes:
+#   * Untrusted values (the brief, track titles) are passed through `with:` and `env:`, never written
+#     into a `run:` script with ${{ }}, so they cannot inject shell commands.
+#   * The action masks the key and the signed URL, and redacts signatures from `result-json`.
+#   * The licensed WAV master is uploaded as a short-lived artifact. Keep the repository private if the
+#     master should not be downloadable by others, and do not commit masters to the repository.
+#   * For production, pin therightsfoundry/trf-python to a full commit SHA instead of @v1.
+
+name: soundtrack
+
+on:
+  workflow_dispatch:
+    inputs:
+      brief:
+        description: "Describe the music you need"
+        required: true
+        default: "upbeat corporate background, light percussion, no vocals"
+      export:
+        description: "Export Sync (offline / outside the platform), charged at export_sync"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soundtrack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  soundtrack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check balance (free)
+        id: credits
+        uses: therightsfoundry/trf-python@v1
+        with:
+          action: credits
+          api-key: ${{ secrets.TRF_API_KEY }}
+
+      - name: Deep Search
+        id: search
+        uses: therightsfoundry/trf-python@v1
+        with:
+          action: deep-search
+          api-key: ${{ secrets.TRF_API_KEY }}
+          query: ${{ inputs.brief }}
+          instrumental: "true"
+          limit: "25"
+          max-credits: "50"
+
+      - name: License and download the WAV master
+        id: sync
+        if: steps.search.outputs.track-id != ''
+        uses: therightsfoundry/trf-python@v1
+        with:
+          action: sync
+          api-key: ${{ secrets.TRF_API_KEY }}
+          track-id: ${{ steps.search.outputs.track-id }}
+          external-export: ${{ inputs.export }}
+          download-path: masters/
+          max-credits: "200"
+
+      - name: Report
+        if: steps.sync.outcome == 'success'
+        env:
+          SPENDABLE_BEFORE: ${{ steps.credits.outputs.credits-spendable }}
+          CREDITS_CHARGED: ${{ steps.sync.outputs.credits-charged }}
+          TRACK_ID: ${{ steps.sync.outputs.track-id }}
+          REQUEST_ID: ${{ steps.sync.outputs.request-id }}
+        run: |
+          echo "Licensed track ${TRACK_ID}: ${CREDITS_CHARGED} credits (spendable before: ${SPENDABLE_BEFORE})"
+          echo "Support reference: ${REQUEST_ID}"
+
+      - name: Keep the master as an artifact
+        if: steps.sync.outputs.downloaded-file != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: soundtrack-master
+          path: ${{ steps.sync.outputs.downloaded-file }}
+          retention-days: 3
+          if-no-files-found: error

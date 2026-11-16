@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: API documentation
+    url: https://docs.therightsfoundry.com
+    about: Endpoint reference, parameters, errors and the live rate-card keys.
+  - name: Report a security vulnerability
+    url: https://github.com/therightsfoundry/trf-python/security/policy
+    about: Please report vulnerabilities privately (security@therightsfoundry.com or GitHub private reporting), never in a public issue.
+  - name: Account, billing or licensing questions
+    url: https://therightsfoundry.com
+    about: Email info@therightsfoundry.com for account, credits, billing and licensing questions.

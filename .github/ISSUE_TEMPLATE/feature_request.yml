@@ -1,0 +1,58 @@
+name: Feature request
+description: Suggest an improvement to the rightsfoundry SDK, CLI, GitHub Action or docs.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The SDK wraps the public Rights Foundry REST API. Requests for new **API** capabilities (catalogue features,
+        pricing, licensing terms) are best sent to info@therightsfoundry.com; this tracker is for the Python SDK itself.
+
+        > [!WARNING]
+        > Never paste your API key or a signed URL (`?expires=…&sig=…`) into an issue.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The API you would like (method names, parameters, behaviour). Code sketches welcome.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now (for example `client.request(...)`, hooks or a custom transport).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Catalogue / search
+        - Sync licensing / downloads
+        - Credits / guardrails / billing
+        - Retries / errors
+        - Async
+        - CLI
+        - GitHub Action
+        - Agents / MCP / LLM docs
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This can be done without adding a runtime dependency (the SDK has zero runtime dependencies by design).
+        - label: I am willing to open a pull request for this.

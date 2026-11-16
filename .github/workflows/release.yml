@@ -1,0 +1,193 @@
+name: release
+
+on:
+  push:
+    # Exact release tags (and PEP 440 / SemVer pre-releases) only. The floating major tag (v1)
+    # that github-release moves has no dots and never matches, so moving it cannot re-trigger release.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+# Least privilege: nothing by default; each job grants only what it needs.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify (tag on main, lint, types, tests, contract)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: The tagged commit must be on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::${GITHUB_SHA} is not an ancestor of origin/main; release only from main"
+            exit 1
+          fi
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install hash-pinned tooling
+        run: |
+          python -m pip install --require-hashes -r requirements/dev.txt
+          python -m pip install --require-hashes -r requirements/build.txt
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: ruff check
+        run: python -m ruff check src tests scripts examples
+      - name: ruff format --check
+        run: python -m ruff format --check src tests scripts examples
+      - name: mypy --strict
+        run: python -m mypy --strict src tests scripts
+      - name: pytest
+        run: python -m pytest -q
+      - name: OpenAPI contract
+        run: python scripts/check_openapi_sync.py conformance/openapi_contract.json
+
+  build:
+    name: build sdist + wheel
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, sys, tomllib
+          tag = os.environ["TAG"]
+          project = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+          module = re.search(r'^__version__ = "([^"]+)"', pathlib.Path("src/rightsfoundry/_version.py").read_text(encoding="utf-8"), re.M)
+          if module is None or module.group(1) != project or tag != f"v{project}":
+              sys.exit(f"tag/version mismatch: tag={tag!r} pyproject={project!r} module={module and module.group(1)!r}")
+          print(f"releasing {project}")
+          PY
+      - name: "Build (hash-pinned tooling; reproducible: SOURCE_DATE_EPOCH = tagged commit time)"
+        run: |
+          python -m pip install --require-hashes -r requirements/build.txt
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
+          # --no-isolation: use the hatchling installed from the hashed file instead of an unpinned download.
+          python -m build --no-isolation
+      - name: Assert zero runtime dependencies (SEC-01)
+        run: python scripts/assert_zero_deps.py dist/*.whl dist/*.tar.gz
+      - name: SBOM and checksums (kept out of dist/, which is published as-is)
+        run: |
+          mkdir -p release-assets
+          python scripts/generate_sbom.py release-assets/rightsfoundry.cdx.json
+          (cd dist && sha256sum *.whl *.tar.gz) > release-assets/SHA256SUMS
+          # Only the wheel and the sdist may ever reach PyPI.
+          find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz' -print -delete
+          ls -la dist release-assets
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-assets
+          path: release-assets/
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    name: attest + publish to PyPI
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Protected environment: required reviewers, deployment restricted to v* tags.
+    environment:
+      name: release
+      url: https://pypi.org/project/rightsfoundry/
+    permissions:
+      id-token: write # PyPI Trusted Publishing (OIDC) and Sigstore; no stored token
+      attestations: write # GitHub build provenance
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist/
+      - name: Only the wheel and sdist are published
+        run: |
+          find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz' -print -delete
+          ls -la dist
+          test "$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          packages-dir: dist/
+          # PEP 740 attestations are generated and uploaded by default with Trusted Publishing.
+
+  github-release:
+    name: GitHub release with SBOM
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release and upload assets
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-assets
+          path: release-assets/
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release create "${TAG}" dist/*.whl dist/*.tar.gz release-assets/* \
+            --repo "${REPO}" \
+            --title "rightsfoundry ${TAG}" \
+            --notes "See CHANGELOG.md for details. Verify any artefact with: gh attestation verify <file> --repo ${REPO}" \
+            --verify-tag
+      - name: Move the floating major tag (v1) to this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          case "${TAG}" in
+            *-*) echo "pre-release ${TAG}: the floating major tag is left alone"; exit 0 ;;
+          esac
+          MAJOR="${TAG%%.*}"
+          if ! printf '%s' "${MAJOR}" | grep -Eq '^v[0-9]+$'; then
+            echo "::error::cannot derive a major tag from ${TAG}"
+            exit 1
+          fi
+          # Refs written with GITHUB_TOKEN start no workflow runs, and v1 does not match this
+          # workflow's tag patterns either, so this cannot retrigger a release.
+          if gh api "repos/${REPO}/git/ref/tags/${MAJOR}" --silent 2>/dev/null; then
+            gh api -X PATCH "repos/${REPO}/git/refs/tags/${MAJOR}" -f sha="${GITHUB_SHA}" -F force=true --silent
+          else
+            gh api -X POST "repos/${REPO}/git/refs" -f ref="refs/tags/${MAJOR}" -f sha="${GITHUB_SHA}" --silent
+          fi
+          echo "${MAJOR} -> ${GITHUB_SHA}"

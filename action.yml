@@ -1,0 +1,150 @@
+name: "The Rights Foundry — Cleared Music Licensing"
+author: "The Rights Foundry"
+description: "Search 85,000+ cleared human-made tracks, check API credits, and license WAV sync masters in GitHub Actions."
+branding:
+  icon: "music"
+  color: "green"
+
+inputs:
+  action:
+    description: "What to do: deep-search | search | search-similar | track | sync | credits | health"
+    required: true
+  api-key:
+    description: "Your Rights Foundry API key. Pass it from a repository secret (secrets.TRF_API_KEY). Not needed for health."
+    required: false
+    default: ""
+  environment:
+    description: "production | staging"
+    required: false
+    default: "production"
+  query:
+    description: "Text for search (lexical) or the natural-language brief for deep-search"
+    required: false
+    default: ""
+  track-id:
+    description: "Track id for track / sync"
+    required: false
+    default: ""
+  file-url:
+    description: "Public https URL of a reference .mp3/.wav for search-similar (an unreachable file is charged)"
+    required: false
+    default: ""
+  genre:
+    description: "Exact genre tag (search)"
+    required: false
+    default: ""
+  mood:
+    description: "Exact mood tag (search)"
+    required: false
+    default: ""
+  instrument:
+    description: "Exact instrument tag (search)"
+    required: false
+    default: ""
+  vocals:
+    description: "instrumental | male | female | any (search)"
+    required: false
+    default: ""
+  bpm-min:
+    description: "Minimum BPM (search)"
+    required: false
+    default: ""
+  bpm-max:
+    description: "Maximum BPM (search)"
+    required: false
+    default: ""
+  duration-min:
+    description: "Minimum duration in seconds (search)"
+    required: false
+    default: ""
+  duration-max:
+    description: "Maximum duration in seconds (search)"
+    required: false
+    default: ""
+  instrumental:
+    description: "true to return instrumental tracks only (deep-search, search-similar)"
+    required: false
+    default: "false"
+  limit:
+    description: "Results per page, 1-100"
+    required: false
+    default: "20"
+  external-export:
+    description: "true for an Export Sync licence (offline use / outside the platform), charged at export_sync"
+    required: false
+    default: "false"
+  download-path:
+    description: "sync only: file or directory to save the WAV master to"
+    required: false
+    default: ""
+  max-credits:
+    description: "Refuse the call client-side if its projected cost exceeds this many credits"
+    required: false
+    default: ""
+
+outputs:
+  result-json:
+    description: "The API response as JSON, with signed URL signatures redacted"
+    value: ${{ steps.trf.outputs.result-json }}
+  track-id:
+    description: "Id of the licensed track, or of the top result for searches"
+    value: ${{ steps.trf.outputs.track-id }}
+  track-title:
+    description: "Title of that track"
+    value: ${{ steps.trf.outputs.track-title }}
+  track-artist:
+    description: "Artist of that track"
+    value: ${{ steps.trf.outputs.track-artist }}
+  downloaded-file:
+    description: "sync only: path of the downloaded WAV master"
+    value: ${{ steps.trf.outputs.downloaded-file }}
+  credits-charged:
+    description: "sync only: credits charged (0 on a free reissue inside the 1-hour window)"
+    value: ${{ steps.trf.outputs.credits-charged }}
+  credits-spendable:
+    description: "credits only: spendable API credits (balance + overdraft)"
+    value: ${{ steps.trf.outputs.credits-spendable }}
+  request-id:
+    description: "X-Request-Id of the API response, for support"
+    value: ${{ steps.trf.outputs.request-id }}
+
+runs:
+  using: "composite"
+  steps:
+    # Every input reaches the program through env only: no ${{ inputs.* }} inside run:,
+    # so untrusted values can never become shell syntax.
+    - id: trf
+      shell: bash
+      env:
+        TRF_ACTION_SRC: ${{ github.action_path }}/src
+        PYTHONDONTWRITEBYTECODE: "1"
+        INPUT_ACTION: ${{ inputs.action }}
+        INPUT_API_KEY: ${{ inputs.api-key }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_QUERY: ${{ inputs.query }}
+        INPUT_TRACK_ID: ${{ inputs.track-id }}
+        INPUT_FILE_URL: ${{ inputs.file-url }}
+        INPUT_GENRE: ${{ inputs.genre }}
+        INPUT_MOOD: ${{ inputs.mood }}
+        INPUT_INSTRUMENT: ${{ inputs.instrument }}
+        INPUT_VOCALS: ${{ inputs.vocals }}
+        INPUT_BPM_MIN: ${{ inputs.bpm-min }}
+        INPUT_BPM_MAX: ${{ inputs.bpm-max }}
+        INPUT_DURATION_MIN: ${{ inputs.duration-min }}
+        INPUT_DURATION_MAX: ${{ inputs.duration-max }}
+        INPUT_INSTRUMENTAL: ${{ inputs.instrumental }}
+        INPUT_LIMIT: ${{ inputs.limit }}
+        INPUT_EXTERNAL_EXPORT: ${{ inputs.external-export }}
+        INPUT_DOWNLOAD_PATH: ${{ inputs.download-path }}
+        INPUT_MAX_CREDITS: ${{ inputs.max-credits }}
+      # python3 -I (isolated mode, every supported Python) ignores PYTHONPATH and
+      # PYTHON* variables and keeps the working directory -- an untrusted checkout --
+      # off sys.path, so a planted rightsfoundry/ or json.py can never be imported
+      # with the API key in the environment. Only the action's own src/ is added.
+      run: |
+        python3 -I -c 'import os, sys
+        if sys.version_info < (3, 9):
+            sys.exit("The Rights Foundry action needs Python 3.9 or newer on the runner (found %d.%d); add actions/setup-python before this step." % sys.version_info[:2])
+        sys.path.insert(0, os.environ["TRF_ACTION_SRC"])
+        from rightsfoundry._action import main
+        raise SystemExit(main())'

@@ -1,0 +1,55 @@
+# The Rights Foundry Python SDK (rightsfoundry)
+
+> `rightsfoundry` is the official, zero-dependency Python SDK (PyPI `rightsfoundry`, Python 3.9–3.14) for The Rights Foundry API. The Rights Foundry (https://therightsfoundry.com/) is music rights infrastructure operated by AudioSocket: royalty-free music for commercial and creative sync, with programmable licensing across 85,000+ tracks of cleared, human-made music. With the SDK you search the catalog (filter, natural-language Deep Search, or Acoustic Similarity Search by reference recording), stream signed MP3 previews, and license a broadcast-quality WAV master in one call. Calls are paid from a prepaid fiat credit balance.
+
+Key facts for agents and coding assistants:
+
+- Install with `pip install rightsfoundry`. Construct with `rightsfoundry.Client()`, which reads the `TRF_API_KEY` environment variable once. `rightsfoundry.AsyncClient()` has the same methods, as coroutines.
+- Licensing is `client.tracks.sync(track_id)`. It is charged at the `sync` cost key (or `export_sync` with `external_export=True`) and returns a signed 1-hour WAV link. Repeating it inside the window is free (`credits_charged == 0`, `reissued is True`). Download with `client.sync_links.download(link, "./masters/")`, which is free.
+- MP3 previews (`track.asset_url`) are free to obtain. Streaming them is intended to be billed per stream (`costs.stream`) from API credits in a future update (metered today, not yet deducted).
+- Never hard-code prices. Read them from `client.credits.retrieve().costs` (free). Every charged method accepts `max_credits=`; every typed method accepts `timeout=`, `max_retries=`, `idempotency_key=` and `send_max_credits_header=`, also bundled as `rightsfoundry.CallOptions`.
+- Page iterators (`client.tracks.iter(...)`) are single-use: iterating one again raises `IteratorConsumedError` rather than re-charging every page.
+- Never expose `TRF_API_KEY` to browsers, mobile apps or client bundles, and never send `Authorization` to `assets.therightsfoundry.com`. Store track IDs, not signed URLs.
+- Sync licences do NOT grant AI/ML training rights.
+
+## Docs
+
+- [README](https://github.com/therightsfoundry/trf-python/blob/main/README.md): overview, quickstart, billing, guardrails, errors, retries, CLI, FAQ
+- [Full SDK reference for LLMs (llms-full.txt)](https://github.com/therightsfoundry/trf-python/blob/main/llms-full.txt): every method, model, error, option and rule in one file
+- [Billing and retries](https://github.com/therightsfoundry/trf-python/blob/main/docs/billing-and-retries.md): sync vs stream, cost keys, charge_state, retry matrix
+- [Security](https://github.com/therightsfoundry/trf-python/blob/main/docs/security.md): controls SEC-01 to SEC-20, key fingerprinting, TLS, SSRF and download safety
+- [Architecture](https://github.com/therightsfoundry/trf-python/blob/main/docs/architecture.md): request pipeline, endpoint registry, transport injection
+- [LLM and MCP guide](https://github.com/therightsfoundry/trf-python/blob/main/docs/llm-and-mcp-guide.md): MCP connector vs SDK, tool-calling schemas, agent safety
+- [GitHub Action](https://github.com/therightsfoundry/trf-python/blob/main/docs/github-action.md): inputs, outputs, recipes
+- [AGENTS.md](https://github.com/therightsfoundry/trf-python/blob/main/AGENTS.md): instructions for AI coding assistants using or contributing to this SDK
+
+## API
+
+- [API reference](https://docs.therightsfoundry.com/): every endpoint, parameter and error
+- [OpenAPI 3.1 document](https://docs.therightsfoundry.com/openapi.yaml): machine-readable API contract
+- [Production API base URL](https://api.therightsfoundry.com): `https://api.therightsfoundry.com/v1/...`
+- [MCP connector](https://mcp.therightsfoundry.com/mcp): `https://mcp.therightsfoundry.com/mcp`, a remote MCP server with OAuth sign-in, so agents never handle an API key
+- [MCP server card](https://mcp.therightsfoundry.com/.well-known/mcp/server-card.json): tool list and metadata for directories
+- [Get an API key](https://therightsfoundry.com/dashboard/token): create and reveal keys, and see the key fingerprint
+- [Licensing terms](https://therightsfoundry.com/licensing): the authoritative description of what each licence allows
+
+## Examples
+
+- [01 Quickstart: brief to WAV](https://github.com/therightsfoundry/trf-python/blob/main/examples/01_quickstart_brief_to_wav.py): Deep Search, sync, download
+- [02 AI video soundtrack pipeline](https://github.com/therightsfoundry/trf-python/blob/main/examples/02_ai_video_soundtrack_pipeline.py): pick by duration/BPM, license, mux into a video with ffmpeg
+- [03 Async FastAPI preview backend](https://github.com/therightsfoundry/trf-python/blob/main/examples/03_async_fastapi_preview_backend.py): key stays server-side; browser gets preview URLs only
+- [04 Acoustic similarity from a temp track](https://github.com/therightsfoundry/trf-python/blob/main/examples/04_acoustic_similarity_temp_track.py): `search_similar` and the charged `UnreachableFileError`
+- [05 Budget-guarded catalogue export](https://github.com/therightsfoundry/trf-python/blob/main/examples/05_budget_guarded_catalog_export.py): `tracks.iter` with `max_credits` and low-credit alerts
+- [GitHub workflow](https://github.com/therightsfoundry/trf-python/blob/main/examples/github_workflow_soundtrack.yml): deep-search then sync in CI
+
+## Optional
+
+- [The Rights Foundry](https://therightsfoundry.com/): platform home
+- [For Builders](https://therightsfoundry.com/for-builders): what developers and AI builders can do with the platform
+- [Claim Free Beta Credits](https://therightsfoundry.com/register): create an account. Promotional welcome credits are granted when you save a payment method; if they are used up inside the promotion window, the account moves to the Starter Beta monthly plan unless you cancel. Current plan and auto-conversion terms are on therightsfoundry.com
+- [Licensed AI training data](https://therightsfoundry.com/licensed-ai-training-data): training-data licensing, which is separate from sync licences
+- [Billing dashboard](https://therightsfoundry.com/dashboard/billing): top-ups and balance
+- [PyPI package](https://pypi.org/project/rightsfoundry/)
+- [Source repository](https://github.com/therightsfoundry/trf-python)
+- [Changelog](https://github.com/therightsfoundry/trf-python/blob/main/CHANGELOG.md)
+- [Security policy](https://github.com/therightsfoundry/trf-python/blob/main/SECURITY.md)
