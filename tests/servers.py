@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 Handler = Callable[["RequestHandler"], None]
 
@@ -66,6 +66,17 @@ class ScriptedServer(ThreadingHTTPServer):
     @property
     def port(self) -> int:
         return int(self.server_address[1])
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        # Tests deliberately abort oversized/TLS/keep-alive sockets; ignore peer reset noise.
+        return
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        except OSError:
+            # macOS raises ENOTCONN (Errno 57) in shutdown_request() when the client already closed.
+            return
 
 
 @contextmanager

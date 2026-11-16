@@ -467,7 +467,8 @@ def test_unsupported_env_proxy_names_the_variable(monkeypatch: pytest.MonkeyPatc
     assert "proxy_url" not in str(info.value)
     monkeypatch.delenv("HTTPS_PROXY")
     monkeypatch.setenv("https_proxy", "socks5://proxy.internal:1080")
-    with pytest.raises(rf.ConfigurationError, match="https_proxy"):
+    # Windows environment variable names are case-insensitive (stored uppercased in os.environ).
+    with pytest.raises(rf.ConfigurationError, match=r"(?i)https_proxy"):
         cfg()
 
 
